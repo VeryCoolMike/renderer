@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <math.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 // Visual Studio Code is dumb and argues this is an error, ignore this, proceed with make main for no errors
@@ -22,23 +26,32 @@ bool line_drawing = false;
 
 unsigned int shaderProgram;
 
-float strengthValue = 0.0f;
+float rotation = 0.0f;
+float size = 1.0f;
+glm::mat4 trans = glm::mat4(1.0f);
 
 int main(void)
 
-// Latest: Uniforms
+// Latest: Matrix-Vector multiplication
 {
     float vertices[] = {
         // positions          // colors           // texture coords
-        0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
-        0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
-        -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
-        -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left 
-    };  
-    unsigned int indices[] = {  // note that we start from 0!
-        0, 2, 3,
-        0, 2, 1
+        -0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, 0.0f,   // top right
+        -0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // bottom right
+        0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 0.0f,  // bottom left
+        0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   // top left 
     };
+
+    unsigned int indices[] = {  // note that we start from 0!
+        0, 3, 2,
+        0, 1, 2,
+    };
+
+    // TESTING TODO: DELETE LATER
+
+    
+    trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
+    trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
 
 
 
@@ -92,9 +105,11 @@ int main(void)
         "\n"
         "out vec3 ourColor;\n"
         "out vec2 TexCoord;\n"
+        "out float TexID;\n"
+        "uniform mat4 transform;\n"
         "void main()\n"
         "{\n"
-        "   gl_Position = vec4(aPos, 1.0);\n"
+        "   gl_Position = transform * vec4(aPos, 1.0f);\n"
         "   ourColor = aColor;\n"
         "   TexCoord = aTexCoord;\n"
         "}\0";
@@ -126,10 +141,9 @@ int main(void)
         "\n"
         "uniform sampler2D texture1;\n"
         "uniform sampler2D texture2;\n"
-        "uniform float strength;\n"
         "void main()\n"
         "{\n"
-        "   FragColor = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), strength);\n"
+        "   FragColor = texture(texture1, TexCoord);\n"
         "}\0";
 
     unsigned int fragmentShader;
@@ -192,9 +206,6 @@ int main(void)
     
     
     glBindVertexArray(VAO);
-    // Copy the vertices array into a buffer for OpenGL to use
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     unsigned int EBO;
     glGenBuffers(1, &EBO);
@@ -219,7 +230,7 @@ int main(void)
 
     glfwSwapInterval(1); // Set to 0 to turn off v-sync (You should keep this on)
 
-    int vertexsize = 8; // I hate doing this manually
+    int vertexsize = 9; // I hate doing this manually
 
     // Vertex Attributes
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)0);
@@ -239,7 +250,6 @@ int main(void)
 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2); // Bind the texture to the third (2) vertex attribute
-
     // Debugging
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -316,9 +326,6 @@ int main(void)
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture2);
 
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
     stbi_image_free(data); // This is freeing the stbi image not the OpenGL texture
 
 
@@ -329,13 +336,19 @@ int main(void)
     ██   ██ ██      ██  ██ ██ ██   ██ ██      ██   ██ ██ ██  ██ ██ ██    ██ 
     ██   ██ ███████ ██   ████ ██████  ███████ ██   ██ ██ ██   ████  ██████                                                              
     */
+
+    unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
+    // 1. The uniform's location
+    // 2. How many matrices are being sent
+    // 3. If the matrix should be transposed (not with GLM)
+    // 4. The matrix data (convert with glm::value_ptr because we're using GLM and OpenGL)
     
-    while (!glfwWindowShouldClose(window)) // I want to look at stuff for more than half a second!
+    while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
         //processInput(window); // Get inputs to do cool things
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT); // Clear previous colours or else ghosts will haunt this software :ghost: 
-        // This is such a stupid comment
+        glClear(GL_COLOR_BUFFER_BIT); // Clear the screen to remove ghosting
 
         calculateFrameRate();
 
@@ -343,20 +356,15 @@ int main(void)
 
         glUseProgram(shaderProgram);
 
-        
-
-        
-
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
         
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:
+        
         glfwSetKeyCallback(window, key_callback);
         glfwPollEvents();
     }
 
-    glfwTerminate(); // Destroy random stuff for some reason
+    glfwTerminate(); // Clean things up!
     return 0;
 }
 
@@ -388,14 +396,41 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
     if (key == GLFW_KEY_UP && action == GLFW_RELEASE)
     {
-        strengthValue += 0.1f;
-        glUniform1f(glGetUniformLocation(shaderProgram, "strength"), strengthValue);
+        size += 0.1f;
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
+        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+        printf("%f\n",size);
     
     }
     if (key == GLFW_KEY_DOWN && action == GLFW_RELEASE)
     {
-        strengthValue -= 0.1f;
-        glUniform1f(glGetUniformLocation(shaderProgram, "strength"), strengthValue);
+        size -= 0.1f;
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
+        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+        printf("%f\n",size);
+    }
+    if (key == GLFW_KEY_LEFT && action == GLFW_RELEASE)
+    {
+        rotation -= 5.0f;
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
+        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+        printf("%f\n",size);
+    
+    }
+    if (key == GLFW_KEY_RIGHT && action == GLFW_RELEASE)
+    {
+        rotation += 5.0f;
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
+        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+        printf("%f\n",size);
     }
 }
 
@@ -419,7 +454,6 @@ void calculateFrameRate() // If it ain't broke don't fix it
     if (currentTime - lastTime > 1.0f)
     {
         lastTime = currentTime;
-        float buffer = framesPerSecond;
         printf("fps: %f\n",framesPerSecond);
         framesPerSecond = 0.0f;
     }
