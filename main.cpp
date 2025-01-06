@@ -34,6 +34,7 @@ int main(void)
 
 // Latest: Matrix-Vector multiplication
 {
+    /*
     float vertices[] = {
         // positions          // colors           // texture coords
         -0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, 0.0f,   // top right
@@ -41,14 +42,64 @@ int main(void)
         0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 0.0f,  // bottom left
         0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   // top left 
     };
+    */
 
-    unsigned int indices[] = {  // note that we start from 0!
-        0, 3, 2,
-        0, 1, 2,
+    float vertices[] = {
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
-    // TESTING TODO: DELETE LATER
-
+    glm::vec3 cubePositions[] = {
+        glm::vec3( 0.0f,  0.0f,  0.0f), 
+        glm::vec3( 2.0f,  5.0f, -15.0f), 
+        glm::vec3(-1.5f, -2.2f, -2.5f),  
+        glm::vec3(-3.8f, -2.0f, -12.3f),  
+        glm::vec3( 2.4f, -0.4f, -3.5f),  
+        glm::vec3(-1.7f,  3.0f, -7.5f),  
+        glm::vec3( 1.3f, -2.0f, -2.5f),  
+        glm::vec3( 1.5f,  2.0f, -2.5f), 
+        glm::vec3( 1.5f,  0.2f, -1.5f), 
+        glm::vec3(-1.3f,  1.0f, -1.5f)  
+    };
     
     trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
     trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
@@ -97,20 +148,29 @@ int main(void)
     ANSI REGULAR FOR LARGE COMMENTS                                                                                                  
     */
 
+
+    glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f); // Create orthographic projection
+    // Left - Right - Bottom - Top
+
+    // Create the projection plane as a matrix
+    glm::mat4 projection;
+    projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+
     // The vertex shader
     const char *vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
-        "layout (location = 1) in vec3 aColor;\n"
-        "layout (location = 2) in vec2 aTexCoord;\n"
+        "layout (location = 1) in vec2 aTexCoord;\n"
         "\n"
-        "out vec3 ourColor;\n"
         "out vec2 TexCoord;\n"
         "out float TexID;\n"
         "uniform mat4 transform;\n"
+        "uniform mat4 model;\n"
+        "uniform mat4 view;\n"
+        "uniform mat4 projection;\n"
+        "\n"
         "void main()\n"
         "{\n"
-        "   gl_Position = transform * vec4(aPos, 1.0f);\n"
-        "   ourColor = aColor;\n"
+        "   gl_Position = projection * view * model * transform * vec4(aPos, 1.0f);\n"
         "   TexCoord = aTexCoord;\n"
         "}\0";
 
@@ -136,7 +196,6 @@ int main(void)
     const char *fragmentShaderSource = "#version 330 core\n"
         "out vec4 FragColor;\n"
         "\n"
-        "in vec3 ourColor;\n"
         "in vec2 TexCoord;\n"
         "\n"
         "uniform sampler2D texture1;\n"
@@ -207,12 +266,6 @@ int main(void)
     
     glBindVertexArray(VAO);
 
-    unsigned int EBO;
-    glGenBuffers(1, &EBO);
-
-    // Copy the indices to the EBO buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // Am I really learning anything if I have no idea what's going on?
 
@@ -230,7 +283,9 @@ int main(void)
 
     glfwSwapInterval(1); // Set to 0 to turn off v-sync (You should keep this on)
 
-    int vertexsize = 9; // I hate doing this manually
+    glEnable(GL_DEPTH_TEST); // Turn off for no depth test
+
+    int vertexsize = 5; // I hate doing this manually
 
     // Vertex Attributes
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)0);
@@ -245,11 +300,8 @@ int main(void)
     // Attributes are taken from the current VBO which is bound to the ARRAY_BUFFER
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1); // Bind the colour to the second (1) vertex attribute
-
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2); // Bind the texture to the third (2) vertex attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1); // Bind the texture to the third (2) vertex attribute
     // Debugging
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -343,12 +395,13 @@ int main(void)
     // 2. How many matrices are being sent
     // 3. If the matrix should be transposed (not with GLM)
     // 4. The matrix data (convert with glm::value_ptr because we're using GLM and OpenGL)
+
     
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
         //processInput(window); // Get inputs to do cool things
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT); // Clear the screen to remove ghosting
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen to remove ghosting
 
         calculateFrameRate();
 
@@ -356,7 +409,38 @@ int main(void)
 
         glUseProgram(shaderProgram);
 
-        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+            
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f)); 
+        // Multiply the vertex coordinate with the model matrix to transform them to world coordinates
+
+        glm::mat4 view = glm::mat4(1.0f);
+        // note that we're translating the scene in the reverse direction of where we want to move
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
+
+        // Create the perspective projection
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)800/(float)600, 0.1f, 100.0f);
+        // FOV - Aspect ratio - Near Plane - Far plane
+
+        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
+        unsigned int viewLoc = glGetUniformLocation(shaderProgram, "view");
+
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+
+        glBindVertexArray(VAO);
+        for (unsigned int i = 0; i < 10; i++)
+        {
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePositions[i]);
+            float angle = 20.0f * i;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3, 0.55));
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+        
         
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:
         
@@ -394,7 +478,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         }
     }
 
-    if (key == GLFW_KEY_UP && action == GLFW_RELEASE)
+    if (key == GLFW_KEY_UP)
     {
         size += 0.1f;
         glm::mat4 trans = glm::mat4(1.0f);
@@ -404,7 +488,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         printf("%f\n",size);
     
     }
-    if (key == GLFW_KEY_DOWN && action == GLFW_RELEASE)
+    if (key == GLFW_KEY_DOWN)
     {
         size -= 0.1f;
         glm::mat4 trans = glm::mat4(1.0f);
@@ -413,7 +497,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
         printf("%f\n",size);
     }
-    if (key == GLFW_KEY_LEFT && action == GLFW_RELEASE)
+    if (key == GLFW_KEY_LEFT)
     {
         rotation -= 5.0f;
         glm::mat4 trans = glm::mat4(1.0f);
@@ -423,7 +507,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         printf("%f\n",size);
     
     }
-    if (key == GLFW_KEY_RIGHT && action == GLFW_RELEASE)
+    if (key == GLFW_KEY_RIGHT)
     {
         rotation += 5.0f;
         glm::mat4 trans = glm::mat4(1.0f);
