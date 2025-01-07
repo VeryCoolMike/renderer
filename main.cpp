@@ -12,7 +12,14 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-// Visual Studio Code is dumb and argues this is an error, ignore this, proceed with make main for no errors
+
+#include "imgui.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
+
+#include <sstream>
+
+void render_gui();
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
@@ -22,17 +29,48 @@ uint32_t getTick();
 
 void calculateFrameRate();
 
+void processInput(GLFWwindow *window);
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+
 bool line_drawing = false;
 
 unsigned int shaderProgram;
 
 float rotation = 0.0f;
 float size = 1.0f;
+//float camera_speed = 0.03f;
 glm::mat4 trans = glm::mat4(1.0f);
+
+// Camera stuff
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
+
+glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
+glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+float lastX = 400, lastY = 300;
+
+float yaw = 0.0f;
+float pitch = 0.0f;
+
+bool mouselocked = true;
+
+bool firstMouse = true;
+
+float fov = 90.0f;
+
+bool gui_visible = false;
 
 int main(void)
 
-// Latest: Matrix-Vector multiplication
+// Latest: Move cubes
 {
     /*
     float vertices[] = {
@@ -154,7 +192,7 @@ int main(void)
 
     // Create the projection plane as a matrix
     glm::mat4 projection;
-    projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+    projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f);
 
     // The vertex shader
     const char *vertexShaderSource = "#version 330 core\n"
@@ -267,12 +305,6 @@ int main(void)
     glBindVertexArray(VAO);
 
 
-    // Am I really learning anything if I have no idea what's going on?
-
-    
-
-    
-
     /*
     ███████ ███████ ████████ ██    ██ ██████  
     ██      ██         ██    ██    ██ ██   ██ 
@@ -281,9 +313,11 @@ int main(void)
     ███████ ███████    ██     ██████  ██                               
     */
 
-    glfwSwapInterval(1); // Set to 0 to turn off v-sync (You should keep this on)
+    glfwSwapInterval(0); // Set to 0 to turn off v-sync (You should keep this on)
 
     glEnable(GL_DEPTH_TEST); // Turn off for no depth test
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
 
     int vertexsize = 5; // I hate doing this manually
 
@@ -380,6 +414,27 @@ int main(void)
 
     stbi_image_free(data); // This is freeing the stbi image not the OpenGL texture
 
+    /*
+     ██████  ██    ██ ██ 
+    ██       ██    ██ ██ 
+    ██   ███ ██    ██ ██ 
+    ██    ██ ██    ██ ██ 
+    ██████   ██████   ██ 
+    */
+
+    glfwSetCursorPosCallback(window, mouse_callback);  
+    glfwSetKeyCallback(window, key_callback);
+    
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+    io.FontGlobalScale = 1.5f;
+    
+    // Restore main window context
+    glfwMakeContextCurrent(window);
 
     /*                                   
     ██████  ███████ ███    ██ ██████  ███████ ██████  ██ ███    ██  ██████  
@@ -396,40 +451,40 @@ int main(void)
     // 3. If the matrix should be transposed (not with GLM)
     // 4. The matrix data (convert with glm::value_ptr because we're using GLM and OpenGL)
 
+    // Get the camera pos, forward, up, and right (up and cameraUp are not the same)
     
+
+    // Create the perspective projection
+    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)800/(float)600, 0.1f, 100.0f);
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+    
+
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
-        //processInput(window); // Get inputs to do cool things
+        glfwMakeContextCurrent(window);
+        
+        
+        glfwPollEvents();
+        processInput(window); // Get inputs to do cool things
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen to remove ghosting
 
         calculateFrameRate();
 
-
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
         glUseProgram(shaderProgram);
 
-            
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f)); 
-        // Multiply the vertex coordinate with the model matrix to transform them to world coordinates
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
+        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
 
-        glm::mat4 view = glm::mat4(1.0f);
-        // note that we're translating the scene in the reverse direction of where we want to move
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
 
-        // Create the perspective projection
-        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)800/(float)600, 0.1f, 100.0f);
-        // FOV - Aspect ratio - Near Plane - Far plane
-
-        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        unsigned int viewLoc = glGetUniformLocation(shaderProgram, "view");
-
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
-
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-
+        
+        
         glBindVertexArray(VAO);
         for (unsigned int i = 0; i < 10; i++)
         {
@@ -440,15 +495,102 @@ int main(void)
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+
+        glm::mat4 projection;
+        projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f);
+
+        glm::mat4 proj = glm::perspective(glm::radians(fov), (float)800/(float)600, 0.1f, 100.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+
         
+        if (gui_visible)
+        {
+            firstMouse = true;
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            ImGui::SetNextWindowSize(ImVec2(400, 300));
+            
+            ImGui::Begin("Control Panel", nullptr, 
+                ImGuiWindowFlags_NoResize | 
+                ImGuiWindowFlags_NoMove | 
+                ImGuiWindowFlags_NoCollapse);
+            
+            // Add your GUI controls here
+            ImGui::SliderFloat("FOV", &fov, 1.0f, 120.0f);
+            ImGui::SliderFloat("Size", &size, 0.1f, 5.0f);
+            ImGui::SliderFloat("Rotation", &rotation, 0.0f, 360.0f);
+            ImGui::Text("Camera Position: %.1f, %.1f, %.1f", 
+                cameraPos.x, cameraPos.y, cameraPos.z);
+
+            float buf[10][3];
+
+            for (int n = 0; n < 10; n++)
+            {
+                
+                char strbuf[128];
+                ImGui::InputFloat3(std::to_string(n).c_str(), &cubePositions[n].x);
+            }
+            
+            ImGui::End();
+            
+
+            // ImGui::ShowDemoWindow();
+            
+            ImGui::Render();
+            int display_w, display_h;
+            glfwGetFramebufferSize(window, &display_w, &display_h);
+            glViewport(0, 0, display_w, display_h);
+            // glClearColor(0.45f, 0.55f, 0.60f, 1.00f); // GUI background color
+            // glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+            // Update projection plane to apply new FOV
+
+            
+        }
+        else
+        {
+            
+            // Ensure ImGui doesn't block input when hidden
+            ImGui::GetIO().WantCaptureMouse = false;
+            ImGui::GetIO().WantCaptureKeyboard = false;
+        }
+
+        // https://learnopengl.com/Getting-started/Camera Euler Angles
+        glm::vec3 direction;
+        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        direction.y = sin(glm::radians(pitch));
+        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        cameraFront = glm::normalize(direction);
         
+        glm::mat4 view = glm::mat4(1.0f);
+
+        glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
+        glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        //printf("%f\n",cameraPos);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:
-        
-        glfwSetKeyCallback(window, key_callback);
-        glfwPollEvents();
     }
+    // !-X-X-X-X-X-! END OF LOOP !-X-X-X-X-X-!
+ 
 
     glfwTerminate(); // Clean things up!
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteTextures(1, &texture1);
+    glDeleteTextures(1, &texture2);
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    
+    ImGui::DestroyContext();
     return 0;
 }
 
@@ -459,6 +601,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+    
+
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, 1);
@@ -475,6 +619,22 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         {
             line_drawing = false;
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+    }
+
+    if (key == GLFW_KEY_Z && action == GLFW_RELEASE)
+    {
+        if (gui_visible == false)
+        {
+            gui_visible = true;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Enable the cursor
+            mouselocked = false;
+        }
+        else
+        {
+            gui_visible = false;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
+            mouselocked = true;
         }
     }
 
@@ -516,6 +676,49 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
         printf("%f\n",size);
     }
+    if (key == GLFW_KEY_TAB && action == GLFW_RELEASE)
+    {
+        if (mouselocked == true)
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Enable the cursor
+            mouselocked = false;
+        }
+        else
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
+            mouselocked = true;
+        }
+    }
+}
+
+void processInput(GLFWwindow *window) // This is perfect frame input for things that are held down
+{
+
+    float camera_speed = 2.5 * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        cameraPos += camera_speed * cameraFront;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        cameraPos -= camera_speed * cameraFront;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    {
+        cameraPos += camera_speed * cameraUp;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    {
+        cameraPos += camera_speed * -cameraUp;
+    }
 }
 
 uint32_t getTick()
@@ -542,3 +745,43 @@ void calculateFrameRate() // If it ain't broke don't fix it
         framesPerSecond = 0.0f;
     }
 }
+
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+
+    if (!mouselocked)
+    {
+        firstMouse = true;
+        return;
+    }
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+  
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; 
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.05f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw   += xoffset;
+    pitch += yoffset;
+
+    if(pitch > 89.0f)
+        pitch = 89.0f;
+    if(pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(direction);
+}  
