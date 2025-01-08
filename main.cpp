@@ -33,6 +33,8 @@ void calculateFrameRate();
 
 void processInput(GLFWwindow *window);
 
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 void error(char *string);
@@ -81,6 +83,10 @@ glm::vec3 lightcolor = glm::vec3(1.0f,0.0f,0.0f);
 
 float ambientintensity = 0.1f;
 
+glm::vec3 lightPos(0.0f, 20.0f, 0.0f);
+
+float specularStrength = 0.5;
+
 int main(void)
 
 // Latest: Move cubes
@@ -96,60 +102,64 @@ int main(void)
     */
 
     float vertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        // Position         // Texture Coords // Normals
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,      0.0f,  0.0f, -1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f, 0.0f,      0.0f,  0.0f, -1.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      0.0f,  0.0f, -1.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,      0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,      0.0f,  0.0f, -1.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      0.0f,  0.0f,  1.0f,
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,      0.0f,  0.0f,  1.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,      0.0f,  0.0f,  1.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,      0.0f,  0.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,      0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      0.0f,  0.0f,  1.0f,
 
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,     -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,     -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,     -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,     -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,     -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,     -1.0f,  0.0f,  0.0f,
 
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      1.0f,  0.0f,  0.0f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f, 1.0f,      0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,      0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,      0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      0.0f, -1.0f,  0.0f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,      0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,      0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,      0.0f,  1.0f,  0.0f
     };
+
 
     float floor[] = {
+        // Format for each vertex: position (3), texcoord (2), normal (3)
         // First triangle
-        -floorsize, floorheight, -floorsize,  0.0f, 0.0f,  // vertex 1: position and texCoord bottom left
-        floorsize, floorheight, -floorsize,   0.0f, 0.0f,  // vertex 2: position and texCoord bottom right
-        -floorsize, floorheight, floorsize,   0.0f, 0.0f,  // vertex 3: position and texCoord top left
-
+        -floorsize, floorheight, -floorsize,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom left
+        floorsize,  floorheight, -floorsize,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom right
+        -floorsize, floorheight,  floorsize,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,  // top left
+        
         // Second triangle
-        floorsize, floorheight, -floorsize,   0.0f, 0.0f,  // vertex 4: position and texCoord bottom right
-        floorsize, floorheight, floorsize,    0.0f, 0.0f,  // vertex 5: position and texCoord top right
-        -floorsize, floorheight, floorsize,   0.0f, 0.0f,  // vertex 6: position and texCoord top left
+        floorsize,  floorheight, -floorsize,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom right
+        floorsize,  floorheight,  floorsize,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  // top right
+        -floorsize, floorheight,  floorsize,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f   // top left
     };
+
 
     glm::vec3 cubePositions[] = {
         glm::vec3( 0.0f,  0.0f,  0.0f), 
@@ -216,9 +226,11 @@ int main(void)
     "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
     "layout (location = 1) in vec2 aTexCoord;\n"
+    "layout (location = 2) in vec3 aNormal;\n"
     "\n"
     "out vec2 TexCoord;\n"
-    "out float TexID;\n"
+    "out vec3 Normal;\n"
+    "out vec3 FragPos;\n"
     "uniform mat4 transform;\n"
     "uniform mat4 model;\n"
     "uniform mat4 view;\n"
@@ -226,6 +238,8 @@ int main(void)
     "\n"
     "void main()\n"
     "{\n"
+    "   FragPos = vec3(model * transform * vec4(aPos, 1.0));\n"
+    "   Normal = mat3(transpose(inverse(model * transform))) * aNormal;\n"
     "   gl_Position = projection * view * model * transform * vec4(aPos, 1.0f);\n"
     "   TexCoord = aTexCoord;\n"
     "}\0";
@@ -254,6 +268,8 @@ int main(void)
     "out vec4 FragColor;\n"
     "\n"
     "in vec2 TexCoord;\n"
+    "in vec3 Normal;\n"
+    "in vec3 FragPos;\n"
     "\n"
     "uniform sampler2D texture1;\n"
     "uniform sampler2D texture2;\n"
@@ -261,11 +277,23 @@ int main(void)
     "uniform vec3 objectColor;\n"
     "uniform vec3 lightColor;\n"
     "uniform float ambientStrength;\n"
+    "uniform vec3 lightPos;\n"
+    "uniform vec3 viewPos;\n"
     "void main()\n"
     "{\n"
-    "   vec3 ambient = ambientStrength * lightColor;\n"
+    "   vec3 norm = normalize(Normal);\n"
+    "   vec3 lightDir = normalize(lightPos - FragPos);\n"
+    "   vec3 viewDir = normalize(viewPos - FragPos);\n"
+    "   vec3 reflectDir = reflect(-lightDir, norm);\n"
+    "   float shininess = 32.0f;\n"
+    "   float intensity = 0.5f;\n"
+    "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
+    "   vec3 specular = intensity * spec * lightColor;\n"
     "   \n"
-    "   vec3 result = ambient * vec3(1.0f, 1.0f, 1.0f);\n"
+    "   vec3 ambient = ambientStrength * lightColor;\n"
+    "   float diff = max(dot(norm, lightDir), 0.0);\n"
+    "   vec3 diffuse = diff * lightColor;\n"
+    "   vec3 result = (ambient + diffuse + specular) * vec3(1.0f, 1.0f, 1.0f);\n"
     "   FragColor = texture(texture2, TexCoord) * vec4(result, 1.0);\n"
     "}\0";
 
@@ -315,7 +343,6 @@ int main(void)
     const char *lightVertexShaderSource = // VERTEX
     "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
-    "layout (location = 1) in vec2 aTexCoord;\n"
     "uniform mat4 model;\n"
     "uniform mat4 view;\n"
     "uniform mat4 projection;\n"
@@ -338,7 +365,7 @@ int main(void)
     if (!lightvertsuccess)
     {
         glGetShaderInfoLog(lightVertShader, 512, NULL, lightvertinfolog); // Put the output into the infolog
-        error("CRITICAL ERROR: Light shader was unable to compile\n");
+        error("CRITICAL ERROR: Light Fragment shader was unable to compile\n");
         printf("%s\n",lightvertinfolog);
     }
 
@@ -401,10 +428,14 @@ int main(void)
     glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), lightcolor[0], lightcolor[1], lightcolor[2]); 
     glUniform1f(glGetUniformLocation(shaderProgram, "ambientStrength"), ambientintensity); 
 
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
+
+    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+
     glDeleteShader(vertexShader); // Delete the shaders since they're already linked they're useless
     glDeleteShader(fragmentShader);  
 
-    int vertexsize = 5; // I hate doing this manually
+    int vertexsize = 8; // I hate doing this manually
     
     // For your main object
     unsigned int VBO, VAO;
@@ -419,11 +450,14 @@ int main(void)
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     // Light cube VAO setup
     unsigned int lightVAO;
     glGenVertexArrays(1, &lightVAO);
     glBindVertexArray(lightVAO);
+
 
     // Bind the same VBO since we're using the same vertex data
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -431,8 +465,6 @@ int main(void)
     // Configure the light's vertex attributes - note the stride matches your vertex format
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
 
     
 
@@ -538,6 +570,7 @@ int main(void)
 
     glfwSetCursorPosCallback(window, mouse_callback);  
     glfwSetKeyCallback(window, key_callback);
+    glfwSetScrollCallback(window, scroll_callback);
     
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -588,6 +621,10 @@ int main(void)
 
         calculateFrameRate();
 
+        float timeValue = glfwGetTime();
+        float lightHeight = (sin(timeValue)) * 10;
+        lightPos.y = lightHeight;
+
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) * sizeof(float), vertices, GL_DYNAMIC_DRAW);
 
         float currentFrame = glfwGetTime();
@@ -622,10 +659,6 @@ int main(void)
 
         //printf("%f\n",vertices[0]);
 
-        glUseProgram(shaderProgram);
-        // Update the Uniforms for ImGui and dynamic lighting
-        glUniform1f(glGetUniformLocation(shaderProgram, "ambientStrength"), ambientintensity); 
-        glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), lightcolor[0], lightcolor[1], lightcolor[2]); 
         
         glBindVertexArray(VAO);
         for (unsigned int i = 0; i < 10; i++)
@@ -646,11 +679,13 @@ int main(void)
         // Floor drawing
         glm::mat4 model = glm::mat4(1.0f);
 
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glUseProgram(shaderProgram);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
-        glBufferData(GL_ARRAY_BUFFER, sizeof(floor), floor, GL_STATIC_DRAW);
+        
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
 
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
         glUseProgram(lightProgram);
@@ -658,8 +693,8 @@ int main(void)
         glBindVertexArray(lightVAO);  // Use the light VAO
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 20.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(5.0f));  // Make the light cube smaller like in the example
+        model = glm::translate(model, glm::vec3(0.0f, lightHeight, -5.0f));
+        model = glm::scale(model, glm::vec3(2.0f));  // Make the light cube smaller like in the example
 
         glUniformMatrix4fv(glGetUniformLocation(lightProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(glGetUniformLocation(lightProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -674,6 +709,13 @@ int main(void)
         
         glm::mat4 proj = glm::perspective(glm::radians(fov), (float)800/(float)600, 0.1f, 1000.0f);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+
+        // Update light
+        glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
+
+        // Update the Uniforms for ImGui and dynamic lighting
+        glUniform1f(glGetUniformLocation(shaderProgram, "ambientStrength"), ambientintensity); 
+        glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), lightcolor[0], lightcolor[1], lightcolor[2]); 
 
         floor[0]  = -floorsize; floor[1]  = floorheight; floor[2]  = -floorsize; floor[3]  =  0.0f; floor[4]  =  0.0f;  // vertex 1
         floor[5]  = floorsize;  floor[6]  = floorheight; floor[7]  = -floorsize; floor[8]  =  1.0f; floor[9]  =  0.0f;  // vertex 2
@@ -892,6 +934,20 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     {
         cameraPos += camera_speed * -cameraUp;
+    }
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    if (yoffset > 0)
+    {
+        // Scrolling up
+        real_camera_speed += 0.5f;
+    }
+    else if (yoffset < 0)
+    {
+        // Scrolling down
+        real_camera_speed -= 0.5f;
     }
 }
 
