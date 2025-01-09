@@ -27,26 +27,16 @@
 
 #include "include/user_made/input_handling.h"
 
+#include "include/user_made/shader.h"
+
 void render_gui();
-
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 uint32_t getTick();
 
 void calculateFrameRate();
 
-void processInput(GLFWwindow *window);
+void error(const char *string);
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-
-void error(char *string);
-
-
-unsigned int shaderProgram;
 
 float rotation = 0.0f;
 float size = 1.0f;
@@ -75,16 +65,6 @@ int main(void)
 
 // Latest: When assigning objects orientation, scaling, or position after addObject() it does not apply
 {
-    /*
-    float vertices[] = {
-        // positions          // colors           // texture coords
-        -0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, 0.0f,   // top right
-        -0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // bottom right
-        0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 0.0f,  // bottom left
-        0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   // top left 
-    };
-    */
-
     printf("One must imagine sisyphus happy\n");
     
     trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
@@ -99,7 +79,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create the window (width, height, name, monitor, ???)
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Simple rendering", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Simple rendering", NULL, NULL);
     if (window == NULL) // Check if the window was made correctly
     {
         error("Failed to create window!\n");
@@ -109,7 +89,7 @@ int main(void)
     glfwMakeContextCurrent(window); // Set the context to the new window
     gladLoadGL(); // Load glad to stop random segmentation fault
 
-    glViewport(0,0,800,600); // Create a viewport for the new window
+    glViewport(0,0,1920,1080); // Create a viewport for the new window
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); // Resize the viewport if the window is resized
     
@@ -133,219 +113,20 @@ int main(void)
     ███████ ██   ██ ██   ██ ██████  ███████ ██   ██ ███████          
     ANSI REGULAR FOR LARGE COMMENTS                                                                                                  
     */
+    Shader lightShader("shaders/lights.vs", "shaders/lights.fs");
+    Shader regularShader("shaders/regular.vs", "shaders/regular.fs");
 
-    // The vertex shader
-    const char *vertexShaderSource =
-    "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "layout (location = 1) in vec2 aTexCoord;\n"
-    "layout (location = 2) in vec3 aNormal;\n"
-    "\n"
-    "out vec2 TexCoord;\n"
-    "out vec3 Normal;\n"
-    "out vec3 FragPos;\n"
-    "uniform mat4 transform;\n"
-    "uniform mat4 model;\n"
-    "uniform mat4 view;\n"
-    "uniform mat4 projection;\n"
-    "\n"
-    "void main()\n"
-    "{\n"
-    "   FragPos = vec3(model * transform * vec4(aPos, 1.0));\n"
-    "   Normal = mat3(transpose(inverse(model * transform))) * aNormal;\n"
-    "   gl_Position = projection * view * model * transform * vec4(aPos, 1.0f);\n"
-    "   TexCoord = aTexCoord;\n"
-    "}\0";
+    regularShader.use();
 
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    regularShader.setInt("texture1", 0);
+    regularShader.setInt("texture2", 1);
 
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL); // (shader, strings, source code, ???) Compile it or something
-    glCompileShader(vertexShader); // Compile the vertex shader
+    regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
+    regularShader.setFloat("ambientStrength", ambientintensity);
 
-    // Check if the compilation was successful
-    int vertexsuccess;
-    char vertexinfoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &vertexsuccess);
+    regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
 
-    if (!vertexsuccess)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, vertexinfoLog); // Put the output into the infolog
-        error("CRITICAL ERROR: Vertex shader was unable to compile\n");
-        printf("%s\n",vertexinfoLog);
-    }
-
-    // The fragment shader
-    const char *fragmentShaderSource =
-    "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "\n"
-    "in vec2 TexCoord;\n"
-    "in vec3 Normal;\n"
-    "in vec3 FragPos;\n"
-    "\n"
-    "uniform sampler2D texture1;\n"
-    "uniform sampler2D texture2;\n"
-    "\n"
-    "uniform vec3 objectColor;\n"
-    "uniform vec3 lightColor;\n"
-    "uniform float ambientStrength;\n"
-    "uniform vec3 lightPos;\n"
-    "uniform vec3 viewPos;\n"
-    "void main()\n"
-    "{\n"
-    "   vec3 norm = normalize(Normal);\n"
-    "   vec3 lightDir = normalize(lightPos - FragPos);\n"
-    "   vec3 viewDir = normalize(viewPos - FragPos);\n"
-    "   vec3 reflectDir = reflect(-lightDir, norm);\n"
-    "   float shininess = 32.0f;\n"
-    "   float intensity = 1.0f;\n"
-    "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
-    "   vec3 specular = intensity * spec * lightColor;\n"
-    "   \n"
-    "   vec3 ambient = ambientStrength * lightColor;\n"
-    "   float diff = max(dot(norm, lightDir), 0.0);\n"
-    "   vec3 diffuse = diff * lightColor;\n"
-    "   vec3 result = (ambient + diffuse + specular) * vec3(1.0f, 1.0f, 1.0f);\n"
-    "   FragColor = texture(texture2, TexCoord) * vec4(result, 1.0);\n"
-    "}\0";
-
-    
-
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL); // (shader, strings, source code, ???) Compile it or something
-    glCompileShader(fragmentShader); // Compile the fragment shader
-
-    // Check if the compilation was successful
-    int fragmentsuccess;
-    char fragmentinfoLog[512];
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &fragmentsuccess);
-
-    if (!fragmentsuccess)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, fragmentinfoLog); // Put the output into the infolog
-        error("CRITICAL ERROR: Fragment shader was unable to compile\n");
-        printf("%s\n",fragmentinfoLog);
-    }
-
-    // Create the shader program (glCreateProgram returns the reference to the new program object)
-    
-    shaderProgram = glCreateProgram();
-
-    // Link the shaders for later use
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    int linksuccess;
-    char linkinfoLog[512];
-
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &linksuccess);
-    if (!linksuccess) // More boring error checking
-    {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, linkinfoLog);
-        error("CRITICAL ERROR: Unable to link shaders\n");
-        printf("%s\n",linkinfoLog);
-    }
-
-
-    // !----------! LIGHTING !----------!
-
-    const char *lightVertexShaderSource = // VERTEX
-    "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "uniform mat4 model;\n"
-    "uniform mat4 view;\n"
-    "uniform mat4 projection;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = projection * view * model * vec4(aPos, 1.0f);\n"
-    "}\0";
-
-    unsigned int lightVertShader;
-    lightVertShader = glCreateShader(GL_VERTEX_SHADER);
-
-    glShaderSource(lightVertShader, 1, &lightVertexShaderSource, NULL); // (shader, strings, source code, ???) Compile it or something
-    glCompileShader(lightVertShader); // Compile the light shader
-
-    // Check if the compilation was successful
-    int lightvertsuccess;
-    char lightvertinfolog[512];
-    glGetShaderiv(lightVertShader, GL_COMPILE_STATUS, &lightvertsuccess);
-
-    if (!lightvertsuccess)
-    {
-        glGetShaderInfoLog(lightVertShader, 512, NULL, lightvertinfolog); // Put the output into the infolog
-        error("CRITICAL ERROR: Light Fragment shader was unable to compile\n");
-        printf("%s\n",lightvertinfolog);
-    }
-
-
-    const char *lightFragmentShaderSource = // FRAGMENT
-    "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "uniform vec3 lightColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(lightColor, 1.0);\n"
-    "}\0";
-
-    unsigned int lightFragShader;
-    lightFragShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    glShaderSource(lightFragShader, 1, &lightFragmentShaderSource, NULL); // (shader, strings, source code, ???) Compile it or something
-    glCompileShader(lightFragShader); // Compile the light shader
-
-    // Check if the compilation was successful
-    int lightfragsuccess;
-    char lightfraginfolog[512];
-    glGetShaderiv(lightFragShader, GL_COMPILE_STATUS, &lightfragsuccess);
-
-    if (!lightfragsuccess)
-    {
-        glGetShaderInfoLog(lightFragShader, 512, NULL, lightfraginfolog); // Put the output into the infolog
-        error("CRITICAL ERROR: Light Vertex shader was unable to compile\n");
-        printf("%s\n",lightfraginfolog);
-    }
-
-
-   
-    // Create the light shader program
-    unsigned int lightProgram = glCreateProgram();
-
-    // Link the vertex shader and light fragment shader
-    glAttachShader(lightProgram, lightVertShader);  // Reuse the same vertex shader
-    glAttachShader(lightProgram, lightFragShader);
-    glLinkProgram(lightProgram);
-
-    // Check for linking errors
-    int lightProgramSuccess;
-    char lightProgramInfoLog[512];
-    glGetProgramiv(lightProgram, GL_LINK_STATUS, &lightProgramSuccess);
-    if (!lightProgramSuccess) 
-    {
-        glGetProgramInfoLog(lightProgram, 512, NULL, lightProgramInfoLog);
-        error("CRITICAL ERROR: Unable to link light shader program\n");
-        printf("%s\n", lightProgramInfoLog);
-    }
-
-
-    glUseProgram(shaderProgram);
-
-    glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
-    glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1); 
-
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), lightcolor[0], lightcolor[1], lightcolor[2]); 
-    glUniform1f(glGetUniformLocation(shaderProgram, "ambientStrength"), ambientintensity); 
-
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
-
-    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
-
-    glDeleteShader(vertexShader); // Delete the shaders since they're already linked they're useless
-    glDeleteShader(fragmentShader);  
+    regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
     int vertexsize = 8; // I hate doing this manually
     
@@ -490,7 +271,7 @@ int main(void)
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
-    io.FontGlobalScale = 1.5f;
+    io.FontGlobalScale = 2.0f;
     
     // Restore main window context
     glfwMakeContextCurrent(window);
@@ -503,11 +284,9 @@ int main(void)
     ██   ██ ███████ ██   ████ ██████  ███████ ██   ██ ██ ██   ████  ██████                                                              
     */
 
-    unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform");
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
+    regularShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
 
-    transformLoc = glGetUniformLocation(lightProgram, "transform");
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
+    lightShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
     // 1. The uniform's location
     // 2. How many matrices are being sent
     // 3. If the matrix should be transposed (not with GLM)
@@ -517,15 +296,15 @@ int main(void)
     
 
     // Create the perspective projection
-    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)800/(float)600, 0.1f, 1000.0f);
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920/(float)1080, 0.1f, 1000.0f);
+    regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-    add_object(currentIDNumber, "box", cubeVert, false, shaderProgram);
-    add_object(currentIDNumber, "floor", floorVert, false, shaderProgram);
+    add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
+    add_object(currentIDNumber, "floor", floorVert, false, regularShader.ID);
 
     objects[currentIDNumber-1].transform.pos = glm::vec3(0.0f, floorHeight, 0.0f);
-    add_object(currentIDNumber, "light", cubeVert, true, lightProgram);
-    add_object(currentIDNumber, "reallight", cubeVert, true, lightProgram);
+    add_object(currentIDNumber, "light", cubeVert, true, lightShader.ID);
+    add_object(currentIDNumber, "reallight", cubeVert, true, lightShader.ID);
 
     objects[currentIDNumber-1].transform.pos = glm::vec3(5.0f, 20.0f, 0.0f);
     objects[currentIDNumber-1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
@@ -564,7 +343,7 @@ int main(void)
         glm::mat4 trans = glm::mat4(1.0f);
         trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
         trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+        regularShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
 
         // Camera stuff
         // https://learnopengl.com/Getting-started/Camera Euler Angles
@@ -581,8 +360,8 @@ int main(void)
         glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
 
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(lightProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
+        lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
 
 
         for (unsigned int i = 0; i < currentIDNumber; i++)
@@ -591,19 +370,18 @@ int main(void)
             
             if (objects[i].light == true)
             {
-                glUseProgram(lightProgram);
-                // glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
-                glUniform3f(glGetUniformLocation(lightProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
-                glUniform3f(glGetUniformLocation(lightProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+                lightShader.use();
+                lightShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+                lightShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
                 glBindVertexArray(lightVAO);  // Use the light VAO
             }
             else
             {
-                glUseProgram(shaderProgram);
-                glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
-                glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1); 
-                glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
-                glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+                regularShader.use();
+                regularShader.setInt("texture1",0);
+                regularShader.setInt("texture2",1);
+                regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+                regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
                 glBindVertexArray(VAO);  // Use the VAO
             }
 
@@ -623,46 +401,36 @@ int main(void)
         
 
         // Needs to be here for some reason or light vertex shader will stop working?????
-        glUseProgram(lightProgram);
-        glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
-        glUniform3f(glGetUniformLocation(lightProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
-        glUniform3f(glGetUniformLocation(lightProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+        lightShader.use();
+        lightShader.setFloat3("lightColor", 1.0f, 0.0f, 0.0f);
+        lightShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
         glBindVertexArray(lightVAO);  // Use the light VAO
 
-        // Bind the buffers to the floor array I can't do this right now im too tired
-        //glBindBuffer
-
-        // Lights
-        // glBufferData(GL_ARRAY_BUFFER, temp.size() * sizeof(float), temp.data(), GL_STATIC_DRAW);
-        
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, lightHeight, -5.0f));
         model = glm::scale(model, glm::vec3(2.0f));  // Make the light cube smaller like in the example
 
-        glUniformMatrix4fv(glGetUniformLocation(lightProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(glGetUniformLocation(lightProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(lightProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+        lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
+        lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
+        lightShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
         
-        glUseProgram(lightProgram);
+        lightShader.use();
         //glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
         glBindVertexArray(lightVAO);  // Use the light VAO
 
         // glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        glUseProgram(shaderProgram);
+        regularShader.use();
 
         // Update things
         
-        glm::mat4 proj = glm::perspective(glm::radians(fov), (float)800/(float)600, 0.1f, 1000.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+        glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920/(float)1080, 0.1f, 1000.0f);
+        regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-        // Update light
-        glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
 
-        // Update the Uniforms for ImGui and dynamic lighting
-        glUniform1f(glGetUniformLocation(shaderProgram, "ambientStrength"), ambientintensity); 
-        glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), lightcolor[0], lightcolor[1], lightcolor[2]); 
+
+        regularShader.setInt("ambientStrength", ambientintensity);
 
         // !-X-X-X-X-X-! GUI !-X-X-X-X-X-!
         if (gui_visible)
@@ -673,7 +441,7 @@ int main(void)
             ImGui::NewFrame();
             
             ImGui::SetNextWindowPos(ImVec2(0, 0));
-            ImGui::SetNextWindowSize(ImVec2(400, 300));
+            ImGui::SetNextWindowSize(ImVec2(500, 800));
             
             ImGui::Begin("Control Panel", nullptr, 
                 ImGuiWindowFlags_NoResize | 
@@ -689,11 +457,11 @@ int main(void)
 
             if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes????
             {
-                add_object(currentIDNumber, "box", cubeVert, false, shaderProgram);
+                add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
             }
             if (ImGui::Button("Make Light"))
             {
-                add_object(currentIDNumber, "light", cubeVert, true, lightProgram);
+                add_object(currentIDNumber, "light", cubeVert, true, lightShader.ID);
             }
 
             ImGui::InputFloat("Camera Speed", &real_camera_speed, 0.1f);
@@ -743,15 +511,16 @@ int main(void)
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:
     }
     // !-X-X-X-X-X-! END OF LOOP !-X-X-X-X-X-!
- 
+    
+    printf("Exitng\n");
 
     glfwTerminate(); // Clean things up!
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteTextures(1, &texture1);
     glDeleteTextures(1, &texture2);
-    glDeleteProgram(lightProgram);
-    glDeleteProgram(shaderProgram);
+    glDeleteProgram(lightShader.ID);
+    glDeleteProgram(regularShader.ID);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     
@@ -787,7 +556,7 @@ void calculateFrameRate() // If it ain't broke don't fix it
 }
 
 
-void error(char *string)
+void error(const char *string)
 {
     printf("\033[1;31m%s\033[0m\n", string);
 }
