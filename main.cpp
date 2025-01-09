@@ -21,6 +21,12 @@
 
 #include <vector>
 
+#include "include/user_made/objects.h"
+
+#include "include/user_made/vertices.h"
+
+#include "include/user_made/input_handling.h"
+
 void render_gui();
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -39,7 +45,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 void error(char *string);
 
-bool line_drawing = false;
 
 unsigned int shaderProgram;
 
@@ -48,48 +53,27 @@ float size = 1.0f;
 //float camera_speed = 0.03f;
 glm::mat4 trans = glm::mat4(1.0f);
 
-// Camera stuff
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
 
-glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-
-float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-
-float lastX = 400, lastY = 300;
-
-float yaw = 0.0f;
-float pitch = 0.0f;
-
-bool mouselocked = true;
-
-bool firstMouse = true;
 
 float fov = 90.0f;
 
-bool gui_visible = false;
-
-float floorheight = -5.0f;
-float floorsize = 100.0f;
-
-float real_camera_speed = 2.5f;
 
 glm::vec3 lightcolor = glm::vec3(1.0f,0.0f,0.0f);
 
 float ambientintensity = 0.1f;
 
-glm::vec3 lightPos(0.0f, 20.0f, 0.0f);
+glm::vec3 lightPos(10.0f, 20.0f, 0.0f);
 
 float specularStrength = 0.5;
 
+float floorHeight = -5.0f;
+
+// Put pointers inside the objects array which point to the object(s)
+
 int main(void)
 
-// Latest: Move cubes
+// Latest: When assigning objects orientation, scaling, or position after addObject() it does not apply
 {
     /*
     float vertices[] = {
@@ -101,78 +85,7 @@ int main(void)
     };
     */
 
-    float vertices[] = {
-        // Position         // Texture Coords // Normals
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,      0.0f,  0.0f, -1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f, 0.0f,      0.0f,  0.0f, -1.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      0.0f,  0.0f, -1.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      0.0f,  0.0f, -1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,      0.0f,  0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,      0.0f,  0.0f, -1.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      0.0f,  0.0f,  1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,      0.0f,  0.0f,  1.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,      0.0f,  0.0f,  1.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,      0.0f,  0.0f,  1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,      0.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      0.0f,  0.0f,  1.0f,
-
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,     -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,     -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,     -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,     -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,     -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,     -1.0f,  0.0f,  0.0f,
-
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      1.0f,  0.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      1.0f,  0.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      1.0f,  0.0f,  0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f, 1.0f,      0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,      0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,      0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,      0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,      0.0f, -1.0f,  0.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,      0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,      0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,      0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,      0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,      0.0f,  1.0f,  0.0f
-    };
-
-
-    float floor[] = {
-        // Format for each vertex: position (3), texcoord (2), normal (3)
-        // First triangle
-        -floorsize, floorheight, -floorsize,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom left
-        floorsize,  floorheight, -floorsize,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom right
-        -floorsize, floorheight,  floorsize,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,  // top left
-        
-        // Second triangle
-        floorsize,  floorheight, -floorsize,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom right
-        floorsize,  floorheight,  floorsize,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  // top right
-        -floorsize, floorheight,  floorsize,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f   // top left
-    };
-
-
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f), 
-        glm::vec3( 2.0f,  5.0f, -15.0f), 
-        glm::vec3(-1.5f, -2.2f, -2.5f),  
-        glm::vec3(-3.8f, -2.0f, -12.3f),  
-        glm::vec3( 2.4f, -0.4f, -3.5f),  
-        glm::vec3(-1.7f,  3.0f, -7.5f),  
-        glm::vec3( 1.3f, -2.0f, -2.5f),  
-        glm::vec3( 1.5f,  2.0f, -2.5f), 
-        glm::vec3( 1.5f,  0.2f, -1.5f), 
-        glm::vec3(-1.3f,  1.0f, -1.5f)  
-    };
+    printf("One must imagine sisyphus happy\n");
     
     trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
     trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
@@ -189,7 +102,7 @@ int main(void)
     GLFWwindow* window = glfwCreateWindow(800, 600, "Simple rendering", NULL, NULL);
     if (window == NULL) // Check if the window was made correctly
     {
-        printf("Failed to create window!\n");
+        error("Failed to create window!\n");
         glfwTerminate();
         return -1;
     }
@@ -203,7 +116,7 @@ int main(void)
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) // I'm not even sure
     {
-        printf("GLAD failed to initialise\n");
+        error("GLAD failed to initialise\n");
         return -1;
     }
 
@@ -258,7 +171,7 @@ int main(void)
     if (!vertexsuccess)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, vertexinfoLog); // Put the output into the infolog
-        printf("CRITICAL ERROR: Vertex shader was unable to compile\n");
+        error("CRITICAL ERROR: Vertex shader was unable to compile\n");
         printf("%s\n",vertexinfoLog);
     }
 
@@ -286,7 +199,7 @@ int main(void)
     "   vec3 viewDir = normalize(viewPos - FragPos);\n"
     "   vec3 reflectDir = reflect(-lightDir, norm);\n"
     "   float shininess = 32.0f;\n"
-    "   float intensity = 0.5f;\n"
+    "   float intensity = 1.0f;\n"
     "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
     "   vec3 specular = intensity * spec * lightColor;\n"
     "   \n"
@@ -421,7 +334,6 @@ int main(void)
 
     glUseProgram(shaderProgram);
 
-    printf("%i\n", shaderProgram);
     glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
     glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1); 
 
@@ -524,7 +436,7 @@ int main(void)
     }
     else
     {
-        printf("Failed to load image %i\n!",texture1);
+        perror("Failed to load image 1\n!");
     }
 
     stbi_image_free(data); // This is freeing the stbi image not the OpenGL texture
@@ -551,7 +463,7 @@ int main(void)
     }
     else
     {
-        printf("Failed to load image %i\n!",texture2);
+        perror("Failed to load image 2\n!");
     }
 
     stbi_image_free(data); // This is freeing the stbi image not the OpenGL texture
@@ -607,7 +519,19 @@ int main(void)
     // Create the perspective projection
     glm::mat4 proj = glm::perspective(glm::radians(fov), (float)800/(float)600, 0.1f, 1000.0f);
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-    
+
+    add_object(currentIDNumber, "box", cubeVert, false, shaderProgram);
+    add_object(currentIDNumber, "floor", floorVert, false, shaderProgram);
+
+    objects[currentIDNumber-1].transform.pos = glm::vec3(0.0f, floorHeight, 0.0f);
+    add_object(currentIDNumber, "light", cubeVert, true, lightProgram);
+    add_object(currentIDNumber, "reallight", cubeVert, true, lightProgram);
+
+    objects[currentIDNumber-1].transform.pos = glm::vec3(5.0f, 20.0f, 0.0f);
+    objects[currentIDNumber-1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
+    std::string reallightname = objects[currentIDNumber-1].name;
+
+    // printf("%f\n", objects[currentIDNumber-1].transform.scale.x);
 
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
@@ -622,16 +546,20 @@ int main(void)
         calculateFrameRate();
 
         float timeValue = glfwGetTime();
-        float lightHeight = (sin(timeValue)) * 10;
+        float lightHeight = (sin(timeValue)) * 5 + 2;
+        float lightZ = (sin(timeValue)) * 5;
         lightPos.y = lightHeight;
+        lightPos.z = lightZ;
+        get_object_by_name(reallightname).transform.pos.x = lightPos.x / 2;
+        get_object_by_name(reallightname).transform.pos.y = lightPos.y;
+        get_object_by_name(reallightname).transform.pos.z = lightPos.z / 2;
+        
 
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) * sizeof(float), vertices, GL_DYNAMIC_DRAW);
-
+        
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        glUseProgram(shaderProgram);
 
         glm::mat4 trans = glm::mat4(1.0f);
         trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
@@ -653,55 +581,74 @@ int main(void)
         glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
 
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        //printf("%f\n",cameraPos);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(lightProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
-        //printf("%f\n",vertices[0]);
 
-        
-        glBindVertexArray(VAO);
-        for (unsigned int i = 0; i < 10; i++)
+        for (unsigned int i = 0; i < currentIDNumber; i++)
         {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3, 0.55));
+            glBufferData(GL_ARRAY_BUFFER, objects[i].vertices.size() * sizeof(float), objects[i].vertices.data(), GL_DYNAMIC_DRAW);
+            
+            if (objects[i].light == true)
+            {
+                glUseProgram(lightProgram);
+                // glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
+                glUniform3f(glGetUniformLocation(lightProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
+                glUniform3f(glGetUniformLocation(lightProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+                glBindVertexArray(lightVAO);  // Use the light VAO
+            }
+            else
+            {
+                glUseProgram(shaderProgram);
+                glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
+                glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1); 
+                glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
+                glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+                glBindVertexArray(VAO);  // Use the VAO
+            }
 
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-            glBindVertexArray(VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::scale(model, glm::vec3(objects[i].transform.scale));
+            model = glm::translate(model, objects[i].transform.pos);
+            glm::vec3 angle = objects[i].transform.rot;
+            model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+            glUniformMatrix4fv(glGetUniformLocation(objects[i].shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            // glBindVertexArray(VAO);
+            glDrawArrays(GL_TRIANGLES, 0, objects[i].vertices.size() / (vertexsize) * 3);
         }
+        
+
+        // Needs to be here for some reason or light vertex shader will stop working?????
+        glUseProgram(lightProgram);
+        glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
+        glUniform3f(glGetUniformLocation(lightProgram, "lightPos"), lightPos.x, lightPos.y, lightPos.z); 
+        glUniform3f(glGetUniformLocation(lightProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z); 
+        glBindVertexArray(lightVAO);  // Use the light VAO
 
         // Bind the buffers to the floor array I can't do this right now im too tired
         //glBindBuffer
 
-        // Floor drawing
-        glm::mat4 model = glm::mat4(1.0f);
-
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glUseProgram(shaderProgram);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        // Lights
+        // glBufferData(GL_ARRAY_BUFFER, temp.size() * sizeof(float), temp.data(), GL_STATIC_DRAW);
         
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glUseProgram(lightProgram);
-        glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
-        glBindVertexArray(lightVAO);  // Use the light VAO
-
-        model = glm::mat4(1.0f);
+        glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, lightHeight, -5.0f));
         model = glm::scale(model, glm::vec3(2.0f));  // Make the light cube smaller like in the example
 
         glUniformMatrix4fv(glGetUniformLocation(lightProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(glGetUniformLocation(lightProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(lightProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+        
+        glUseProgram(lightProgram);
+        //glUniform3f(glGetUniformLocation(lightProgram, "lightColor"), 1.0f, 0.0f, 0.0f); 
+        glBindVertexArray(lightVAO);  // Use the light VAO
 
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
+        // glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glUseProgram(shaderProgram);
 
@@ -716,14 +663,6 @@ int main(void)
         // Update the Uniforms for ImGui and dynamic lighting
         glUniform1f(glGetUniformLocation(shaderProgram, "ambientStrength"), ambientintensity); 
         glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), lightcolor[0], lightcolor[1], lightcolor[2]); 
-
-        floor[0]  = -floorsize; floor[1]  = floorheight; floor[2]  = -floorsize; floor[3]  =  0.0f; floor[4]  =  0.0f;  // vertex 1
-        floor[5]  = floorsize;  floor[6]  = floorheight; floor[7]  = -floorsize; floor[8]  =  1.0f; floor[9]  =  0.0f;  // vertex 2
-        floor[10] = -floorsize; floor[11] = floorheight; floor[12] = floorsize; floor[13] =  1.0f; floor[14] =  1.0f;  // vertex 3
-
-        floor[15] = floorsize;  floor[16] = floorheight; floor[17] = -floorsize; floor[18] =  0.0f; floor[19] =  0.0f;  // vertex 4
-        floor[20] = floorsize;  floor[21] = floorheight; floor[22] = floorsize; floor[23] =  1.0f; floor[24] =  1.0f;  // vertex 5
-        floor[25] = -floorsize; floor[26] = floorheight; floor[27] = floorsize; floor[28] =  1.0f; floor[29] =  1.0f;  // vertex 6
 
         // !-X-X-X-X-X-! GUI !-X-X-X-X-X-!
         if (gui_visible)
@@ -748,22 +687,39 @@ int main(void)
             ImGui::Text("Camera Position: %.1f, %.1f, %.1f", 
                 cameraPos.x, cameraPos.y, cameraPos.z);
 
-            ImGui::InputFloat("Floor Height", &floorheight, 0.5f);
+            if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes????
+            {
+                add_object(currentIDNumber, "box", cubeVert, false, shaderProgram);
+            }
+            if (ImGui::Button("Make Light"))
+            {
+                add_object(currentIDNumber, "light", cubeVert, true, lightProgram);
+            }
+
             ImGui::InputFloat("Camera Speed", &real_camera_speed, 0.1f);
 
             ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
-            ImGui::InputFloat("Light Color 1", &lightcolor[0]);
-            ImGui::InputFloat("Light Color 2", &lightcolor[1]);
-            ImGui::InputFloat("Light Color 3", &lightcolor[2]);
+            ImGui::ColorPicker3("Light Color", glm::value_ptr(lightcolor));
+            ImGui::InputFloat("Floor Height", &floorHeight, 0.05f);
 
-            float buf[10][3];
 
-            for (int n = 0; n < 10; n++)
+            for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
             {
-                
-                char strbuf[128];
-                ImGui::InputFloat3(std::to_string(n).c_str(), &cubePositions[n].x);
+                ImGui::PushID(n); // Push the index as the unique ID
+                ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
+                ImGui::Text("ID: %i",objects[n].id);
+
+                if (ImGui::Button("Delete"))
+                {
+                    // Remove the object at index n
+                    objects.erase(objects.begin() + n);
+
+                    // Adjust the loop counter because the vector size has changed
+                    --n;
+                }
+                ImGui::PopID(); // Pop the ID after the widget
             }
+
 
             
             ImGui::End();
@@ -779,13 +735,6 @@ int main(void)
             // glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        }
-        else
-        {
-            
-            // Ensure ImGui doesn't block input when hidden
-            ImGui::GetIO().WantCaptureMouse = false;
-            ImGui::GetIO().WantCaptureKeyboard = false;
         }
 
         
@@ -810,146 +759,7 @@ int main(void)
     return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    
-
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, 1);
-    }
-
-    if (key == GLFW_KEY_P && action == GLFW_RELEASE)
-    {
-        if (line_drawing == false)
-        {
-            line_drawing = true;
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        }
-        else
-        {
-            line_drawing = false;
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        }
-    }
-
-    if (key == GLFW_KEY_Z && action == GLFW_RELEASE)
-    {
-        if (gui_visible == false)
-        {
-            gui_visible = true;
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Enable the cursor
-            mouselocked = false;
-        }
-        else
-        {
-            gui_visible = false;
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
-            mouselocked = true;
-        }
-    }
-
-    if (key == GLFW_KEY_UP)
-    {
-        size += 0.1f;
-        glm::mat4 trans = glm::mat4(1.0f);
-        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
-        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
-        printf("%f\n",size);
-    
-    }
-    if (key == GLFW_KEY_DOWN)
-    {
-        size -= 0.1f;
-        glm::mat4 trans = glm::mat4(1.0f);
-        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
-        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
-        printf("%f\n",size);
-    }
-    if (key == GLFW_KEY_LEFT)
-    {
-        rotation -= 5.0f;
-        glm::mat4 trans = glm::mat4(1.0f);
-        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
-        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
-        printf("%f\n",size);
-    
-    }
-    if (key == GLFW_KEY_RIGHT)
-    {
-        rotation += 5.0f;
-        glm::mat4 trans = glm::mat4(1.0f);
-        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0,0.0,1.0)); // Rotate theta around Z
-        trans = glm::scale(trans, glm::vec3(size, size, size)); // Scale to size
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
-        printf("%f\n",size);
-    }
-    if (key == GLFW_KEY_TAB && action == GLFW_RELEASE)
-    {
-        if (mouselocked == true)
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Enable the cursor
-            mouselocked = false;
-        }
-        else
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
-            mouselocked = true;
-        }
-    }
-}
-
-void processInput(GLFWwindow *window) // This is perfect frame input for things that are held down
-{
-
-    float camera_speed = real_camera_speed * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-    {
-        cameraPos += camera_speed * cameraFront;
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-    {
-        cameraPos -= camera_speed * cameraFront;
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-    {
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-    {
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-    {
-        cameraPos += camera_speed * cameraUp;
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-    {
-        cameraPos += camera_speed * -cameraUp;
-    }
-}
-
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    if (yoffset > 0)
-    {
-        // Scrolling up
-        real_camera_speed += 0.5f;
-    }
-    else if (yoffset < 0)
-    {
-        // Scrolling down
-        real_camera_speed -= 0.5f;
-    }
-}
 
 uint32_t getTick()
 {
@@ -977,46 +787,8 @@ void calculateFrameRate() // If it ain't broke don't fix it
 }
 
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
-{
-
-    if (!mouselocked)
-    {
-        firstMouse = true;
-        return;
-    }
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-  
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; 
-    lastX = xpos;
-    lastY = ypos;
-
-    float sensitivity = 0.05f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw   += xoffset;
-    pitch += yoffset;
-
-    if(pitch > 89.0f)
-        pitch = 89.0f;
-    if(pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(direction);
-}  
-
 void error(char *string)
 {
     printf("\033[1;31m%s\033[0m\n", string);
 }
+
