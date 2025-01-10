@@ -34,6 +34,7 @@ float calculateFrameRate();
 
 void error(const char *string);
 
+
 float rotation = 0.0f;
 float size = 1.0f;
 
@@ -57,6 +58,15 @@ float lastFPS = 0.0f;
 
 GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
 
+bool levelEditing = false;
+
+
+struct gui 
+{
+    int id;
+    bool visible;
+};
+
 
 // Put pointers inside the objects array which point to the object(s)
 
@@ -65,6 +75,10 @@ int main(void)
 // Latest: Issue when adding a light and then destroying it (Does not happen on cubes) Fix: Don't put lights in other objects
 {
     std::vector<GLuint> textureArray;
+    std::vector<gui> guisVisible;
+
+
+
     printf("One must imagine sisyphus happy\n");
 
     // Setting up some boring config stuff
@@ -174,6 +188,7 @@ int main(void)
 
     // Textures
     // https://learnopengl.com/Getting-started/Textures Documentation about textures   
+    // I thought I could only have 32 textures??? Nope, unlimited??? How does this work, I don't know I thought the max for GL_TEXTURE[?] was 32. Wacky!
     int fileCount = 0;
     for (auto i : std::filesystem::directory_iterator("resources/textures"))
     {
@@ -193,16 +208,6 @@ int main(void)
         std::cout << textureArray[i] << std::endl;
     }
 
-    /*
-    unsigned int texture1 = loadTexture("resources/textures/glowstone.png");
-    unsigned int texture2 = loadTexture("resources/textures/prototype.jpg");
-
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    */
     /*
      ██████  ██    ██ ██
     ██       ██    ██ ██
@@ -257,8 +262,25 @@ int main(void)
     objects[currentIDNumber - 1].transform.pos = glm::vec3(5.0f, 20.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
     objects[currentIDNumber - 1].texture = 0;
-
     std::string reallightname = objects[currentIDNumber - 1].name;
+    
+    add_object(currentIDNumber, "walls", mapVert, false, regularShader.ID);
+
+
+    for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
+    {
+        gui newGui;
+        newGui.id = n;
+        newGui.visible = false;
+
+        guisVisible.push_back(newGui);
+    }
+
+    for (int i = 0; i < guisVisible.size(); i++)
+    {
+        printf("A - %i\n",guisVisible[i].id);
+        printf("B - %d\n",guisVisible[i].visible);
+    }
 
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
@@ -313,12 +335,16 @@ int main(void)
         regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
 
+        for (int i = 0; i < mapVert.size(); i++)
+        {
+            std::cout << mapVert[i] << std::endl;
+        }
+        
+
         for (unsigned int i = 0; i < currentIDNumber; i++)
         {
             const auto& obj = objects[i];
             glBufferData(GL_ARRAY_BUFFER, obj.vertices.size() * sizeof(float), obj.vertices.data(), GL_DYNAMIC_DRAW);
-
-            //printf("%i\n",obj.texture);
 
             if (obj.light == true)
             {
@@ -335,6 +361,8 @@ int main(void)
                 regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
                 regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
                 regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
+                regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
+                regularShader.setBool("fullBright", fullBright);
                 glBindVertexArray(VAO); // Use the VAO
             }
 
@@ -434,18 +462,21 @@ int main(void)
             for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
             {
                 ImGui::PushID(n); // Push the index as the unique ID
-                ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
+                ImGui::Text(objects[n].name.c_str());
+                // ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
                 
                 ImGui::Text("ID: %i", objects[n].id);
-                for (int i = 0; i < fileCount; i++)
+                if (ImGui::Button("Edit"))
                 {
-                    ImGui::PushID(i);
-                    if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0,0)))  // 0 for no padding
+                    if (guisVisible[objects[n].id].visible == false)
                     {
-                        objects[n].texture = i;
+                        guisVisible[objects[n].id].visible = true;
                     }
-                    ImGui::SameLine();
-                    ImGui::PopID();
+                    else
+                    {
+                        guisVisible[objects[n].id].visible = false;
+                    }
+                    
                 }
                 ImGui::NewLine();
                 
@@ -458,7 +489,38 @@ int main(void)
                     --n;
                 }
                 ImGui::PopID(); // Pop the ID after the widget
+
+                if (guisVisible[n].visible)
+                {
+                    ImGui::Begin(objects[n].name.c_str());  // Start the ImGui window
+                    for (int i = 0; i < fileCount; i++)
+                    {
+                        ImGui::PushID(i);
+                        if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0,0)))  // 0 for no padding
+                        {
+                            objects[n].texture = i;
+                        }
+                        if (i % 10 != 0 || i == 0)
+                        {
+                            ImGui::SameLine();
+                        }
+                        else
+                        {
+                            ImGui::NewLine();
+                        }
+
+                        
+                        ImGui::PopID();
+                    }
+                    ImGui::NewLine();
+                    ImGui::SetNextItemWidth(150.0f);
+                    ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[n].objectColor));
+                        
+                    
+                    ImGui::End();  // End the ImGui window
+                }
             }
+    
 
             ImGui::End();
 
@@ -467,10 +529,18 @@ int main(void)
             int display_w, display_h;
             glfwGetFramebufferSize(window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
-            // glClearColor(0.45f, 0.55f, 0.60f, 1.00f); // GUI background color
-            // glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            
+            
+
+            
+
+            
+
+
         }
+
+        
 
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:
     }

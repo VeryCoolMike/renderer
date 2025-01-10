@@ -67,3 +67,5 @@ std::vector<float> floorVert = {
     100.0f,  0.0f,  100.0f,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  // top right
     -100.0f, 0.0f,  100.0f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f   // top left
 };
+
+std::vector<float> mapVert;

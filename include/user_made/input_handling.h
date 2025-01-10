@@ -35,6 +35,8 @@ bool mouselocked = true;
 
 bool firstMouse = true;
 
+bool fullBright = false;
+
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -72,6 +74,19 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             gui_visible = false;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
             mouselocked = true;
+        }
+    }
+
+    if (key == GLFW_KEY_X && action == GLFW_RELEASE)
+    {
+        if (fullBright == false)
+        {
+            fullBright = true;
+            printf("Fullbright enabled\n");
+        }
+        else
+        {
+            fullBright = false;
         }
     }
 
