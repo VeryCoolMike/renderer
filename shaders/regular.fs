@@ -4,16 +4,13 @@ in vec2 TexCoord;
 in vec3 Normal;
 in vec3 FragPos;
 
-uniform sampler2D texture1;
-uniform sampler2D texture2;
+uniform sampler2D currentTexture;
 
 uniform vec3 objectColor;
 uniform vec3 lightColor;
 uniform float ambientStrength;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
-
-uniform int lights;
 
 void main()
 {
@@ -30,9 +27,10 @@ void main()
    vec3 diffuse = diff * lightColor;
    float distance = length(lightPos - FragPos);
    float attenuation = 1.0 / (1.0f + 0.09f * distance + 0.032f * (distance * distance));
+   
    ambient *= attenuation;
    diffuse *= attenuation;
    specular *= attenuation;
-   vec3 result = (ambient + diffuse + specular) * vec3(1.0f, 1.0f, 1.0f);
-   FragColor = texture(texture2, TexCoord) * vec4(result, 1.0);
+   vec3 result = (ambient + diffuse + specular);
+   FragColor = texture(currentTexture, TexCoord) * vec4(result, 1.0);
 };

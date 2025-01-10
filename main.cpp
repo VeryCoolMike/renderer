@@ -7,13 +7,14 @@
 #include <math.h>
 #include <sstream>
 #include <vector>
+#include <filesystem>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -23,12 +24,13 @@
 #include "include/user_made/vertices.h"
 #include "include/user_made/input_handling.h"
 #include "include/user_made/shader.h"
+#include "include/user_made/textures.h"
 
 void render_gui();
 
 uint32_t getTick();
 
-void calculateFrameRate();
+float calculateFrameRate();
 
 void error(const char *string);
 
@@ -49,18 +51,21 @@ glm::vec3 lightPos(10.0f, 20.0f, 0.0f);
 
 float specularStrength = 0.5;
 
-float floorHeight = -5.0f;
+bool rainbowMode = false;
+
+float lastFPS = 0.0f;
+
+GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
+
 
 // Put pointers inside the objects array which point to the object(s)
 
 int main(void)
 
-// Latest: When assigning objects orientation, scaling, or position after addObject() it does not apply
+// Latest: Issue when adding a light and then destroying it (Does not happen on cubes) Fix: Don't put lights in other objects
 {
+    std::vector<GLuint> textureArray;
     printf("One must imagine sisyphus happy\n");
-
-    trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0, 0.0, 1.0)); // Rotate theta around Z
-    trans = glm::scale(trans, glm::vec3(size, size, size));                       // Scale to size
 
     // Setting up some boring config stuff
     glfwInit();
@@ -102,8 +107,6 @@ int main(void)
 
     regularShader.use();
 
-    regularShader.setInt("texture1", 0);
-    regularShader.setInt("texture2", 1);
 
     regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
     regularShader.setFloat("ambientStrength", ambientintensity);
@@ -141,6 +144,8 @@ int main(void)
     // Configure the light's vertex attributes - note the stride matches your vertex format
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     /*
     ███████ ███████ ████████ ██    ██ ██████
@@ -168,75 +173,36 @@ int main(void)
     }
 
     // Textures
-    // https://learnopengl.com/Getting-started/Textures Documentation about textures
-    unsigned int texture1;
-    glGenTextures(1, &texture1); // Assign the texture an id (1 is the id of the texture)
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char *data = stbi_load("resources/test.png", &width, &height, &nrChannels, 0);
-
-    if (data)
+    // https://learnopengl.com/Getting-started/Textures Documentation about textures   
+    int fileCount = 0;
+    for (auto i : std::filesystem::directory_iterator("resources/textures"))
     {
-        printf("Image %i loaded successfully!\n", texture1);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        // 1. Create the image as a 2D texture
-        // 2. The mipmap level
-        // 3. What format to store the texture in
-        // 4. Width
-        // 5. Height
-        // 6. ??? Set to 0 always
-        // 7. The format of the source image (put in the same as how you loaded it)
-        // 8. The datatype of the source image (put in the same as how you loaded it)
-        // 9. The image data
-
-        glGenerateMipmap(GL_TEXTURE_2D);
+        if (std::filesystem::is_regular_file(i))
+        {
+            std::cout << i << std::endl;
+            textureArray.push_back(loadTexture(i.path().string().c_str()));
+            glActiveTexture(GL_TEXTURE0 + fileCount+1);
+            glBindTexture(GL_TEXTURE_2D, textureArray[fileCount]);
+            fileCount++;
+        }
     }
-    else
+    printf("%i textures found!\n",fileCount);
+
+    for (int i = 0; i < fileCount; i++)
     {
-        perror("Failed to load image 1\n!");
+        std::cout << textureArray[i] << std::endl;
     }
 
-    stbi_image_free(data); // This is freeing the stbi image not the OpenGL texture
+    /*
+    unsigned int texture1 = loadTexture("resources/textures/glowstone.png");
+    unsigned int texture2 = loadTexture("resources/textures/prototype.jpg");
 
-    unsigned int texture2;
-    glGenTextures(2, &texture2); // Assign the texture an id (1 is the id of the texture)
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    stbi_set_flip_vertically_on_load(true);
-    data = stbi_load("resources/prototype.jpg", &width, &height, &nrChannels, 0);
-
-    if (data)
-    {
-        printf("Image %i loaded successfully!\n", texture2);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        perror("Failed to load image 2\n!");
-    }
-
-    stbi_image_free(data); // This is freeing the stbi image not the OpenGL texture
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture1);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture2);
+    */
     /*
      ██████  ██    ██ ██
     ██       ██    ██ ██
@@ -285,15 +251,14 @@ int main(void)
 
     add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
     add_object(currentIDNumber, "floor", floorVert, false, regularShader.ID);
+    objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
 
-    objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, floorHeight, 0.0f);
     add_object(currentIDNumber, "reallight", cubeVert, true, lightShader.ID);
-
     objects[currentIDNumber - 1].transform.pos = glm::vec3(5.0f, 20.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
-    std::string reallightname = objects[currentIDNumber - 1].name;
+    objects[currentIDNumber - 1].texture = 0;
 
-    // printf("%f\n", objects[currentIDNumber-1].transform.scale.x);
+    std::string reallightname = objects[currentIDNumber - 1].name;
 
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
@@ -301,10 +266,16 @@ int main(void)
 
         glfwPollEvents();
         processInput(window); // Get inputs to do cool things
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen to remove ghosting
 
-        calculateFrameRate();
+        float framesPerSecond = calculateFrameRate();
+
+        if (framesPerSecond >= 0.0)
+        {
+            lastFPS = framesPerSecond;
+            printf("%f\n",lastFPS);
+        }
 
         float timeValue = glfwGetTime();
         float lightHeight = (sin(timeValue)) * 5 + 2;
@@ -324,7 +295,7 @@ int main(void)
         trans = glm::scale(trans, glm::vec3(size, size, size));                       // Scale to size
         regularShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
 
-        // Camera stuff
+        //  Camera stuff
         // https://learnopengl.com/Getting-started/Camera Euler Angles
         glm::vec3 direction;
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -344,29 +315,33 @@ int main(void)
 
         for (unsigned int i = 0; i < currentIDNumber; i++)
         {
-            glBufferData(GL_ARRAY_BUFFER, objects[i].vertices.size() * sizeof(float), objects[i].vertices.data(), GL_DYNAMIC_DRAW);
+            const auto& obj = objects[i];
+            glBufferData(GL_ARRAY_BUFFER, obj.vertices.size() * sizeof(float), obj.vertices.data(), GL_DYNAMIC_DRAW);
 
-            if (objects[i].light == true)
+            //printf("%i\n",obj.texture);
+
+            if (obj.light == true)
             {
                 lightShader.use();
                 lightShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
                 lightShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+                lightShader.setInt("currentTexture", obj.texture);
                 glBindVertexArray(lightVAO); // Use the light VAO
             }
             else
             {
                 regularShader.use();
-                regularShader.setInt("texture1", 0);
-                regularShader.setInt("texture2", 1);
+                regularShader.setInt("currentTexture", obj.texture);
                 regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
                 regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+                regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
                 glBindVertexArray(VAO); // Use the VAO
             }
 
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::scale(model, glm::vec3(objects[i].transform.scale));
-            model = glm::translate(model, objects[i].transform.pos);
-            glm::vec3 angle = objects[i].transform.rot;
+            model = glm::scale(model, glm::vec3(obj.transform.scale));
+            model = glm::translate(model, obj.transform.pos);
+            glm::vec3 angle = obj.transform.rot;
             model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
             model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
             model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -377,7 +352,8 @@ int main(void)
 
         // Needs to be here for some reason or light vertex shader will stop working?????
         lightShader.use();
-        lightShader.setFloat3("lightColor", 1.0f, 0.0f, 0.0f);
+        lightShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
+        
         lightShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
         glBindVertexArray(lightVAO); // Use the light VAO
 
@@ -398,7 +374,18 @@ int main(void)
         glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
         regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-        regularShader.setInt("ambientStrength", ambientintensity);
+        regularShader.setFloat("ambientStrength", ambientintensity);
+
+        if (rainbowMode)
+        {
+            lightcolor[0] = (sin(timeValue) * 0.5 + 0.5);          // Red (0.0 to 1.0)
+            lightcolor[1] = (sin(timeValue + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
+            lightcolor[2] = (sin(timeValue + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
+
+            backgroundColor[2] = (sin(timeValue) * 0.5 + 0.5);          // Red (0.0 to 1.0)
+            backgroundColor[1] = (sin(timeValue + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
+            backgroundColor[0] = (sin(timeValue + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
+        }
 
         // !-X-X-X-X-X-! GUI !-X-X-X-X-X-!
         if (gui_visible)
@@ -423,9 +410,12 @@ int main(void)
             ImGui::Text("Camera Position: %.1f, %.1f, %.1f",
                         cameraPos.x, cameraPos.y, cameraPos.z);
 
+            ImGui::Text("FPS: %f", lastFPS);
+
             if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes????
             {
                 add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
+                objects[currentIDNumber-1].texture = 0;
             }
             if (ImGui::Button("Make Light"))
             {
@@ -436,14 +426,29 @@ int main(void)
 
             ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
             ImGui::ColorPicker3("Light Color", glm::value_ptr(lightcolor));
-            ImGui::InputFloat("Floor Height", &floorHeight, 0.05f);
+            ImGui::ColorPicker4("Background COlor", backgroundColor);
+
+
+            ImGui::Checkbox("Rainbow mode!!!", &rainbowMode);
 
             for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
             {
                 ImGui::PushID(n); // Push the index as the unique ID
                 ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
+                
                 ImGui::Text("ID: %i", objects[n].id);
-
+                for (int i = 0; i < fileCount; i++)
+                {
+                    ImGui::PushID(i);
+                    if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0,0)))  // 0 for no padding
+                    {
+                        objects[n].texture = i;
+                    }
+                    ImGui::SameLine();
+                    ImGui::PopID();
+                }
+                ImGui::NewLine();
+                
                 if (ImGui::Button("Delete"))
                 {
                     // Remove the object at index n
@@ -476,8 +481,10 @@ int main(void)
     glfwTerminate(); // Clean things up!
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteTextures(1, &texture1);
-    glDeleteTextures(1, &texture2);
+    for (int i = 0; i < fileCount; i++)
+    {
+        glDeleteTextures(1, &textureArray[i]);
+    }
     glDeleteProgram(lightShader.ID);
     glDeleteProgram(regularShader.ID);
     ImGui_ImplOpenGL3_Shutdown();
@@ -497,18 +504,20 @@ uint32_t getTick()
     return theTick;
 }
 
-void calculateFrameRate() // If it ain't broke don't fix it
+float calculateFrameRate() // If it ain't broke don't fix it
 {
     static float framesPerSecond = 0.0f;
     static float lastTime = 0.0f;
     float currentTime = getTick() * 0.001f;
     framesPerSecond++;
-    if (currentTime - lastTime > 1.0f)
+    if (currentTime - lastTime > 0.2f)
     {
         lastTime = currentTime;
-        printf("fps: %f\n", framesPerSecond);
+        float buffer = framesPerSecond * 5;
         framesPerSecond = 0.0f;
+        return buffer;
     }
+    return -1.0f;
 }
 
 void error(const char *string)

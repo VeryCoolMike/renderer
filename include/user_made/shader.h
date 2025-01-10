@@ -10,6 +10,8 @@
 #include <sstream>
 #include <iostream>
 
+// Make textures easy to add
+
 class Shader
 {
 public:

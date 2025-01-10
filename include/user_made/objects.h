@@ -31,6 +31,7 @@ struct object
     } transform;
     unsigned int shader;
     bool light;
+    unsigned int texture = 1;
 };
 
 std::vector<object> objects;
