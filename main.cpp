@@ -8,6 +8,9 @@
 #include <sstream>
 #include <vector>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <iterator>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -59,8 +62,7 @@ float lastFPS = 0.0f;
 GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
 
 bool levelEditing = false;
-
-
+ 
 struct gui 
 {
     int id;
@@ -72,12 +74,10 @@ struct gui
 
 int main(void)
 
-// Latest: Issue when adding a light and then destroying it (Does not happen on cubes) Fix: Don't put lights in other objects
+// Latest: Light ID having to catch up to previously made Light ID to work
 {
     std::vector<GLuint> textureArray;
     std::vector<gui> guisVisible;
-
-
 
     printf("One must imagine sisyphus happy\n");
 
@@ -124,8 +124,6 @@ int main(void)
 
     regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
     regularShader.setFloat("ambientStrength", ambientintensity);
-
-    regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
 
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
@@ -261,14 +259,22 @@ int main(void)
     add_object(currentIDNumber, "reallight", cubeVert, true, lightShader.ID);
     objects[currentIDNumber - 1].transform.pos = glm::vec3(5.0f, 20.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
-    objects[currentIDNumber - 1].texture = 0;
+    objects[currentIDNumber - 1].texture = 1;
     std::string reallightname = objects[currentIDNumber - 1].name;
-    
-    add_object(currentIDNumber, "walls", mapVert, false, regularShader.ID);
+
+
+
+    add_object(currentIDNumber, "reallight2", cubeVert, true, lightShader.ID);
+    objects[currentIDNumber - 1].transform.pos = glm::vec3(-5.0f, 20.0f, 0.0f);
+    objects[currentIDNumber - 1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
+    objects[currentIDNumber - 1].texture = 1;
+    std::string reallight2name = objects[currentIDNumber - 1].name;
 
 
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
     {
+        if (objects[n].enabled == false) {continue;}
+
         gui newGui;
         newGui.id = n;
         newGui.visible = false;
@@ -276,11 +282,17 @@ int main(void)
         guisVisible.push_back(newGui);
     }
 
-    for (int i = 0; i < guisVisible.size(); i++)
+    int counter = 0;
+    for (int i = 0 ; i < currentIDNumber; i++)
     {
-        printf("A - %i\n",guisVisible[i].id);
-        printf("B - %d\n",guisVisible[i].visible);
+        if (objects[i].enabled == false) {continue;}
+        const auto& obj = objects[i];
+        if (obj.light == true)
+        {
+            counter += 1;
+        }
     }
+    regularShader.setInt("lightAmount", counter); // Avoiding running expensive operations every frame
 
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
@@ -302,11 +314,12 @@ int main(void)
         float timeValue = glfwGetTime();
         float lightHeight = (sin(timeValue)) * 5 + 2;
         float lightZ = (sin(timeValue)) * 5;
-        lightPos.y = lightHeight;
-        lightPos.z = lightZ;
-        get_object_by_name(reallightname).transform.pos.x = lightPos.x / 2;
-        get_object_by_name(reallightname).transform.pos.y = lightPos.y;
-        get_object_by_name(reallightname).transform.pos.z = lightPos.z / 2;
+
+        get_object_by_name(reallightname).transform.pos.y = lightHeight;
+        get_object_by_name(reallightname).transform.pos.z = lightZ / 2;
+
+        get_object_by_name(reallight2name).transform.pos.y = lightHeight;
+        get_object_by_name(reallight2name).transform.pos.z = lightZ / 2;
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -335,36 +348,52 @@ int main(void)
         regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
 
-        for (int i = 0; i < mapVert.size(); i++)
+        for (int i = 0; i < lightArray.size(); i++) // Ah yes, peak, run a for loop every single frame multiple times, truly the pythonic way.
         {
-            std::cout << mapVert[i] << std::endl;
+            lightArray[i].pos = objects[lightArray[i].id].transform.pos;
+            std::string uniformName = "pointLights[" + std::to_string(i) + "]";
+            regularShader.setFloat3(uniformName + ".position", lightArray[i].pos.x, lightArray[i].pos.y, lightArray[i].pos.z);
+            regularShader.setBool(uniformName + ".enabled", lightArray[i].enabled);
+            regularShader.setFloat3(uniformName + ".color", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]);
+            
         }
-        
+
 
         for (unsigned int i = 0; i < currentIDNumber; i++)
         {
+            if (objects[i].enabled == false) {continue;}
             const auto& obj = objects[i];
             glBufferData(GL_ARRAY_BUFFER, obj.vertices.size() * sizeof(float), obj.vertices.data(), GL_DYNAMIC_DRAW);
 
-            if (obj.light == true)
+            if (obj.light)
             {
                 lightShader.use();
-                lightShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+                for (int i = 0; i < lightArray.size(); i++) // Ah yes, peak, run a for loop every single frame multiple times, truly the pythonic way.
+                {
+                    lightArray[i].color = objects[lightArray[i].id].objectColor;
+                    if (lightArray[i].id == obj.id)
+                    {
+                        lightShader.setFloat3("lightColor", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]);
+                    }
+                }
                 lightShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
                 lightShader.setInt("currentTexture", obj.texture);
-                glBindVertexArray(lightVAO); // Use the light VAO
+                
+                glBindVertexArray(lightVAO);
             }
             else
             {
                 regularShader.use();
                 regularShader.setInt("currentTexture", obj.texture);
-                regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+                
                 regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-                regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
+                //regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
                 regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
                 regularShader.setBool("fullBright", fullBright);
-                glBindVertexArray(VAO); // Use the VAO
+                regularShader.setFloat("ambientStrength", ambientintensity);  // Adjust this value as needed
+                glBindVertexArray(VAO);
             }
+
 
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::scale(model, glm::vec3(obj.transform.scale));
@@ -380,9 +409,9 @@ int main(void)
 
         // Needs to be here for some reason or light vertex shader will stop working?????
         lightShader.use();
-        lightShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
         
-        lightShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+        //lightShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
+        
         glBindVertexArray(lightVAO); // Use the light VAO
 
         glm::mat4 model = glm::mat4(1.0f);
@@ -406,6 +435,7 @@ int main(void)
 
         if (rainbowMode)
         {
+
             lightcolor[0] = (sin(timeValue) * 0.5 + 0.5);          // Red (0.0 to 1.0)
             lightcolor[1] = (sin(timeValue + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
             lightcolor[2] = (sin(timeValue + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
@@ -440,6 +470,14 @@ int main(void)
 
             ImGui::Text("FPS: %f", lastFPS);
 
+            if (ImGui::Button("Save")) {
+                SaveToFile("MapFile1.txt");
+            }
+
+            if (ImGui::Button("Load")) {
+                LoadFromFile("MapFile1.txt");
+            }
+
             if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes????
             {
                 add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
@@ -448,22 +486,33 @@ int main(void)
             if (ImGui::Button("Make Light"))
             {
                 add_object(currentIDNumber, "light", cubeVert, true, lightShader.ID);
+                int counter = 0;
+                for (int i = 0 ; i < currentIDNumber; i++)
+                {
+                    //if (objects[i].enabled == false) {continue;} I don't know why I had to comment this, but if I don't everything breaks.
+                    const auto& obj = objects[i];
+                    if (obj.light == true)
+                    {
+                        counter += 1;
+                    }
+                }
+                regularShader.setInt("lightAmount", counter); // Avoiding running expensive operations every frame
             }
 
             ImGui::InputFloat("Camera Speed", &real_camera_speed, 0.1f);
 
             ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
-            ImGui::ColorPicker3("Light Color", glm::value_ptr(lightcolor));
-            ImGui::ColorPicker4("Background COlor", backgroundColor);
+            //ImGui::ColorPicker3("Light Color", glm::value_ptr(lightcolor));
+            ImGui::ColorPicker4("Background Color", backgroundColor);
 
 
             ImGui::Checkbox("Rainbow mode!!!", &rainbowMode);
 
             for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
             {
+                if (objects[n].enabled == false) {continue;}
                 ImGui::PushID(n); // Push the index as the unique ID
                 ImGui::Text(objects[n].name.c_str());
-                // ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
                 
                 ImGui::Text("ID: %i", objects[n].id);
                 if (ImGui::Button("Edit"))
@@ -480,14 +529,8 @@ int main(void)
                 }
                 ImGui::NewLine();
                 
-                if (ImGui::Button("Delete"))
-                {
-                    // Remove the object at index n
-                    objects.erase(objects.begin() + n);
-
-                    // Adjust the loop counter because the vector size has changed
-                    --n;
-                }
+                
+                
                 ImGui::PopID(); // Pop the ID after the widget
 
                 if (guisVisible[n].visible)
@@ -515,7 +558,16 @@ int main(void)
                     ImGui::NewLine();
                     ImGui::SetNextItemWidth(150.0f);
                     ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[n].objectColor));
-                        
+                    ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
+                    if (ImGui::Button("Delete"))
+                    {
+                        // Remove the object at index n
+                        remove_object(n);
+                        //objects.erase(objects.begin() + n);
+
+                        // Adjust the loop counter because the vector size has changed
+                        //--n;
+                    }
                     
                     ImGui::End();  // End the ImGui window
                 }
@@ -530,26 +582,18 @@ int main(void)
             glfwGetFramebufferSize(window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-            
-            
-
-            
-
-            
-
 
         }
-
-        
 
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:
     }
     // !-X-X-X-X-X-! END OF LOOP !-X-X-X-X-X-!
 
-    printf("Exitng\n");
+    printf("Exiting\n");
 
     glfwTerminate(); // Clean things up!
     glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
     for (int i = 0; i < fileCount; i++)
     {
