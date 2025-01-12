@@ -74,7 +74,7 @@ struct gui
 
 int main(void)
 
-// Latest: Light ID having to catch up to previously made Light ID to work
+// Latest: Collision and playing the game
 {
     std::vector<GLuint> textureArray;
     std::vector<gui> guisVisible;
@@ -252,35 +252,22 @@ int main(void)
     glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-    add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
-    add_object(currentIDNumber, "floor", floorVert, false, regularShader.ID);
+    add_object(currentIDNumber, "box", cubeVert, false);
+    add_object(currentIDNumber, "floor", cubeVert, false);
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
+    objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
-    add_object(currentIDNumber, "reallight", cubeVert, true, lightShader.ID);
-    objects[currentIDNumber - 1].transform.pos = glm::vec3(5.0f, 20.0f, 0.0f);
-    objects[currentIDNumber - 1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
-    objects[currentIDNumber - 1].texture = 1;
-    std::string reallightname = objects[currentIDNumber - 1].name;
-
-
-
-    add_object(currentIDNumber, "reallight2", cubeVert, true, lightShader.ID);
-    objects[currentIDNumber - 1].transform.pos = glm::vec3(-5.0f, 20.0f, 0.0f);
-    objects[currentIDNumber - 1].transform.scale = glm::vec3(2.0f, 2.0f, 2.0f);
-    objects[currentIDNumber - 1].texture = 1;
-    std::string reallight2name = objects[currentIDNumber - 1].name;
-
-
+    
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
     {
         if (objects[n].enabled == false) {continue;}
-
         gui newGui;
         newGui.id = n;
         newGui.visible = false;
-
         guisVisible.push_back(newGui);
     }
+    
+
 
     int counter = 0;
     for (int i = 0 ; i < currentIDNumber; i++)
@@ -311,24 +298,16 @@ int main(void)
             printf("%f\n",lastFPS);
         }
 
-        float timeValue = glfwGetTime();
-        float lightHeight = (sin(timeValue)) * 5 + 2;
-        float lightZ = (sin(timeValue)) * 5;
-
-        get_object_by_name(reallightname).transform.pos.y = lightHeight;
-        get_object_by_name(reallightname).transform.pos.z = lightZ / 2;
-
-        get_object_by_name(reallight2name).transform.pos.y = lightHeight;
-        get_object_by_name(reallight2name).transform.pos.z = lightZ / 2;
-
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        /*
         glm::mat4 trans = glm::mat4(1.0f);
         trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0, 0.0, 1.0)); // Rotate theta around Z
         trans = glm::scale(trans, glm::vec3(size, size, size));                       // Scale to size
         regularShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
+        */
 
         //  Camera stuff
         // https://learnopengl.com/Getting-started/Camera Euler Angles
@@ -394,29 +373,34 @@ int main(void)
                 glBindVertexArray(VAO);
             }
 
-
+            // Transformations
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::scale(model, glm::vec3(obj.transform.scale));
             model = glm::translate(model, obj.transform.pos);
+            model = glm::scale(model, glm::vec3(obj.transform.scale));
             glm::vec3 angle = obj.transform.rot;
             model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
             model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
             model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-            glUniformMatrix4fv(glGetUniformLocation(objects[i].shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            if (obj.light == true)
+            {
+                glUniformMatrix4fv(glGetUniformLocation(lightShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            }
+            else
+            {
+                glUniformMatrix4fv(glGetUniformLocation(regularShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            }
+            
             glDrawArrays(GL_TRIANGLES, 0, objects[i].vertices.size() / (vertexsize) * 3);
         }
 
         // Needs to be here for some reason or light vertex shader will stop working?????
         lightShader.use();
         
-        //lightShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
         
         glBindVertexArray(lightVAO); // Use the light VAO
 
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, lightHeight, -5.0f));
-        model = glm::scale(model, glm::vec3(2.0f)); // Make the light cube smaller like in the example
 
         lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
@@ -436,13 +420,13 @@ int main(void)
         if (rainbowMode)
         {
 
-            lightcolor[0] = (sin(timeValue) * 0.5 + 0.5);          // Red (0.0 to 1.0)
-            lightcolor[1] = (sin(timeValue + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
-            lightcolor[2] = (sin(timeValue + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
+            lightcolor[0] = (sin(currentFrame) * 0.5 + 0.5);          // Red (0.0 to 1.0)
+            lightcolor[1] = (sin(currentFrame + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
+            lightcolor[2] = (sin(currentFrame + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
 
-            backgroundColor[2] = (sin(timeValue) * 0.5 + 0.5);          // Red (0.0 to 1.0)
-            backgroundColor[1] = (sin(timeValue + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
-            backgroundColor[0] = (sin(timeValue + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
+            backgroundColor[2] = (sin(currentFrame) * 0.5 + 0.5);          // Red (0.0 to 1.0)
+            backgroundColor[1] = (sin(currentFrame + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
+            backgroundColor[0] = (sin(currentFrame + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
         }
 
         // !-X-X-X-X-X-! GUI !-X-X-X-X-X-!
@@ -461,7 +445,6 @@ int main(void)
                              ImGuiWindowFlags_NoMove |
                              ImGuiWindowFlags_NoCollapse);
 
-            // Add your GUI controls here
             ImGui::SliderFloat("FOV", &fov, 1.0f, 120.0f);
             ImGui::SliderFloat("Size", &size, 0.1f, 5.0f);
             ImGui::SliderFloat("Rotation", &rotation, 0.0f, 360.0f);
@@ -470,22 +453,26 @@ int main(void)
 
             ImGui::Text("FPS: %f", lastFPS);
 
+            static char mapFileName[128] = "MapFile1.txt";
+
+            ImGui::InputText("Map file", mapFileName, sizeof(mapFileName));
+
             if (ImGui::Button("Save")) {
-                SaveToFile("MapFile1.txt");
+                SaveToFile(mapFileName); // Save to MapFile1.txt
             }
 
             if (ImGui::Button("Load")) {
-                LoadFromFile("MapFile1.txt");
+                regularShader.setInt("lightAmount", LoadFromFile(mapFileName)); // Load from MapFile1.txt
             }
 
-            if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes????
+            if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
             {
-                add_object(currentIDNumber, "box", cubeVert, false, regularShader.ID);
+                add_object(currentIDNumber, "box", cubeVert, false);
                 objects[currentIDNumber-1].texture = 0;
             }
             if (ImGui::Button("Make Light"))
             {
-                add_object(currentIDNumber, "light", cubeVert, true, lightShader.ID);
+                add_object(currentIDNumber, "light", cubeVert, true);
                 int counter = 0;
                 for (int i = 0 ; i < currentIDNumber; i++)
                 {
@@ -502,29 +489,37 @@ int main(void)
             ImGui::InputFloat("Camera Speed", &real_camera_speed, 0.1f);
 
             ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
-            //ImGui::ColorPicker3("Light Color", glm::value_ptr(lightcolor));
             ImGui::ColorPicker4("Background Color", backgroundColor);
 
 
             ImGui::Checkbox("Rainbow mode!!!", &rainbowMode);
 
-            for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
+            for (int n = 0; n < objects.size(); ++n)
             {
                 if (objects[n].enabled == false) {continue;}
                 ImGui::PushID(n); // Push the index as the unique ID
-                ImGui::Text(objects[n].name.c_str());
+                std::string text = objects[n].name + std::to_string(n);
+                ImGui::Text("%s", text.c_str());
                 
                 ImGui::Text("ID: %i", objects[n].id);
                 if (ImGui::Button("Edit"))
                 {
-                    if (guisVisible[objects[n].id].visible == false)
+                    try
                     {
-                        guisVisible[objects[n].id].visible = true;
+                        if (guisVisible[objects[n].id].visible == false)
+                        {
+                            guisVisible[objects[n].id].visible = true;
+                        }
+                        else
+                        {
+                            guisVisible[objects[n].id].visible = false;
+                        }
                     }
-                    else
+                    catch (const std::exception& e)
                     {
-                        guisVisible[objects[n].id].visible = false;
+                        std::cerr << "Error detecting gui: " << e.what() << std::endl;
                     }
+                        
                     
                 }
                 ImGui::NewLine();
@@ -533,44 +528,50 @@ int main(void)
                 
                 ImGui::PopID(); // Pop the ID after the widget
 
-                if (guisVisible[n].visible)
+                try
                 {
-                    ImGui::Begin(objects[n].name.c_str());  // Start the ImGui window
-                    for (int i = 0; i < fileCount; i++)
+                    if (guisVisible[n].visible)
                     {
-                        ImGui::PushID(i);
-                        if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0,0)))  // 0 for no padding
+                        ImGui::Begin(objects[n].name.c_str());  // Start the ImGui window
+                        for (int i = 0; i < fileCount; i++)
                         {
-                            objects[n].texture = i;
-                        }
-                        if (i % 10 != 0 || i == 0)
-                        {
-                            ImGui::SameLine();
-                        }
-                        else
-                        {
-                            ImGui::NewLine();
-                        }
+                            ImGui::PushID(i);
+                            if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0,0)))  // 0 for no padding
+                            {
+                                objects[n].texture = i;
+                            }
+                            if (i % 10 != 0 || i == 0)
+                            {
+                                ImGui::SameLine();
+                            }
+                            else
+                            {
+                                ImGui::NewLine();
+                            }
 
+                            
+                            ImGui::PopID();
+                        }
+                        ImGui::NewLine();
+                        ImGui::SetNextItemWidth(150.0f);
+                        ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[n].objectColor));
+                        ImGui::InputFloat3("Position", &objects[n].transform.pos.x);
+                        ImGui::InputFloat3("Rotation", &objects[n].transform.rot.x);
+                        ImGui::InputFloat3("Scale", &objects[n].transform.scale.x);
+                        if (ImGui::Button("Delete"))
+                        {
+                            // Remove the object at index n
+                            remove_object(n);
+                        }
                         
-                        ImGui::PopID();
+                        ImGui::End();  // End the ImGui window
                     }
-                    ImGui::NewLine();
-                    ImGui::SetNextItemWidth(150.0f);
-                    ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[n].objectColor));
-                    ImGui::DragFloat3((objects[n].name).c_str(), &objects[n].transform.pos.x);
-                    if (ImGui::Button("Delete"))
-                    {
-                        // Remove the object at index n
-                        remove_object(n);
-                        //objects.erase(objects.begin() + n);
-
-                        // Adjust the loop counter because the vector size has changed
-                        //--n;
-                    }
-                    
-                    ImGui::End();  // End the ImGui window
                 }
+                catch(const std::exception& e)
+                {
+                    std::cerr << "Error: " << e.what() << '\n';
+                }
+                
             }
     
 
@@ -582,7 +583,6 @@ int main(void)
             glfwGetFramebufferSize(window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
         }
 
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:

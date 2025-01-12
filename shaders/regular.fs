@@ -63,7 +63,7 @@ void main()
         }
     }
     
-    if (fullBright)  // Simplified boolean comparison
+    if (fullBright)
     {
         FragColor = texture(currentTexture, TexCoord) * vec4(result, 1.0) + vec4(1.0);
     }
