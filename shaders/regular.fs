@@ -18,6 +18,7 @@ uniform vec3 objectColor;
 uniform float ambientStrength;
 uniform vec3 viewPos;
 uniform bool fullBright;
+uniform bool selected;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
@@ -63,6 +64,7 @@ void main()
         }
     }
     
+    
     if (fullBright)
     {
         FragColor = texture(currentTexture, TexCoord) * vec4(result, 1.0) + vec4(1.0);
@@ -70,5 +72,10 @@ void main()
     else
     {
         FragColor = texture(currentTexture, TexCoord) * vec4(result, 1.0);
+    }
+
+    if (selected == true)
+    {
+        FragColor = texture(currentTexture, TexCoord);
     }
 }

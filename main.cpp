@@ -160,10 +160,7 @@ int main(void)
     glEnableVertexAttribArray(1);
 
     /*
-    ███████ ███████ ████████ ██    ██ ██████
-    ██      ██         ██    ██    ██ ██   ██
-    ███████ █████      ██    ██    ██ ██████
-         ██ ██         ██    ██    ██ ██
+    ███████ ███████ ████████ ██    ██ ██████main
     ███████ ███████    ██     ██████  ██
     */
 
@@ -226,6 +223,7 @@ int main(void)
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
     io.FontGlobalScale = 2.0f;
+    io.IniFilename = nullptr;
 
     // Restore main window context
     glfwMakeContextCurrent(window);
@@ -257,7 +255,6 @@ int main(void)
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
-    
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
     {
         if (objects[n].enabled == false) {continue;}
@@ -266,8 +263,6 @@ int main(void)
         newGui.visible = false;
         guisVisible.push_back(newGui);
     }
-    
-
 
     int counter = 0;
     for (int i = 0 ; i < currentIDNumber; i++)
@@ -302,12 +297,6 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        /*
-        glm::mat4 trans = glm::mat4(1.0f);
-        trans = glm::rotate(trans, glm::radians(rotation), glm::vec3(0.0, 0.0, 1.0)); // Rotate theta around Z
-        trans = glm::scale(trans, glm::vec3(size, size, size));                       // Scale to size
-        regularShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
-        */
 
         //  Camera stuff
         // https://learnopengl.com/Getting-started/Camera Euler Angles
@@ -344,6 +333,7 @@ int main(void)
             const auto& obj = objects[i];
             glBufferData(GL_ARRAY_BUFFER, obj.vertices.size() * sizeof(float), obj.vertices.data(), GL_DYNAMIC_DRAW);
 
+
             if (obj.light)
             {
                 lightShader.use();
@@ -363,10 +353,18 @@ int main(void)
             else
             {
                 regularShader.use();
+                
                 regularShader.setInt("currentTexture", obj.texture);
+                if (obj.selected == true)
+                {
+                    regularShader.setBool("selected", true);
+                }
+                else
+                {
+                    regularShader.setBool("selected", false);
+                }
                 
                 regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-                //regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
                 regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
                 regularShader.setBool("fullBright", fullBright);
                 regularShader.setFloat("ambientStrength", ambientintensity);  // Adjust this value as needed
@@ -463,6 +461,21 @@ int main(void)
 
             if (ImGui::Button("Load")) {
                 regularShader.setInt("lightAmount", LoadFromFile(mapFileName)); // Load from MapFile1.txt
+                for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
+                {
+                    if (objects[n].enabled == false) {continue;}
+                    gui newGui;
+                    newGui.id = n;
+                    newGui.visible = false;
+                    guisVisible.push_back(newGui);
+                }
+
+                for (int i = 0; i < guisVisible.size(); i++)
+                {
+                    guisVisible[i].visible = false;
+                    objects[i].selected = false;
+                }
+                
             }
 
             if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
@@ -504,23 +517,37 @@ int main(void)
                 ImGui::Text("ID: %i", objects[n].id);
                 if (ImGui::Button("Edit"))
                 {
-                    try
+                    if (objects[n].id >= 0 && objects[n].id < guisVisible.size())
                     {
-                        if (guisVisible[objects[n].id].visible == false)
+                        if (!guisVisible[objects[n].id].visible)
                         {
+                            // Hide all other GUIs and deselect all objects
+                            for (int i = 0; i < guisVisible.size(); i++)
+                            {
+                                guisVisible[i].visible = false;
+                                
+                            }
+                            for (int v = 0; v < objects.size(); v++)
+                            {
+                                objects[v].selected = false;
+                            }
+
+                            // Show the GUI and select the current object
                             guisVisible[objects[n].id].visible = true;
+                            objects[n].selected = true;
                         }
                         else
                         {
+                            // Hide the GUI and deselect the current object
                             guisVisible[objects[n].id].visible = false;
+                            objects[n].selected = false;
                         }
                     }
-                    catch (const std::exception& e)
+                    else
                     {
-                        std::cerr << "Error detecting gui: " << e.what() << std::endl;
+                        std::cerr << "Error: objects[n].id is out of bounds! " << n << std::endl;
                     }
-                        
-                    
+                    // Check if the current object's GUI is not visible
                 }
                 ImGui::NewLine();
                 
@@ -528,7 +555,7 @@ int main(void)
                 
                 ImGui::PopID(); // Pop the ID after the widget
 
-                try
+                try // Segmentation fault :(
                 {
                     if (guisVisible[n].visible)
                     {
@@ -583,6 +610,18 @@ int main(void)
             glfwGetFramebufferSize(window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+        else // Gui not visible
+        {
+            for (int i = 0; i < guisVisible.size(); i++)
+            {
+                guisVisible[i].visible = false;
+                
+            }
+            for (int v = 0; v < objects.size(); v++)
+            {
+                objects[v].selected = false;
+            }
         }
 
         glfwSwapBuffers(window); // Swap the buffers and poll the events :sunglasses:

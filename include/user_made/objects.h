@@ -37,6 +37,7 @@ struct object
     bool light;
     unsigned int texture = 1;
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
+    bool selected = false;
 };
 
 
@@ -46,6 +47,7 @@ struct light // This truly is an ECS
     glm::vec3 color;
     int id;
     bool enabled = true;
+    bool selected = false;
 };
 
 

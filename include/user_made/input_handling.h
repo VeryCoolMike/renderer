@@ -8,6 +8,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
+
 // Camera stuff
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
 glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -37,6 +38,11 @@ bool firstMouse = true;
 
 bool fullBright = false;
 
+bool duplicateCooldown = false;
+std::chrono::time_point<std::chrono::high_resolution_clock> cooldownStart;
+
+
+extern std::vector<object> objects;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -103,6 +109,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             mouselocked = true;
         }
     }
+
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -114,29 +121,65 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
 {
 
     float camera_speed = real_camera_speed * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    if (gui_visible == false)
     {
-        cameraPos += camera_speed * cameraFront;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        {
+            cameraPos += camera_speed * cameraFront;
+        }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        {
+            cameraPos -= camera_speed * cameraFront;
+        }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
+        }
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            cameraPos += camera_speed * cameraUp;
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            cameraPos += camera_speed * -cameraUp;
+        }
     }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    else
     {
-        cameraPos -= camera_speed * cameraFront;
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-    {
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-    {
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * camera_speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-    {
-        cameraPos += camera_speed * cameraUp;
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-    {
-        cameraPos += camera_speed * -cameraUp;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // Duplicate
+        {
+            if (duplicateCooldown == false)
+            {
+                duplicateCooldown = true;
+                cooldownStart = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < objects.size(); i++)
+                {
+                    if (objects[i].selected == true)
+                    {
+                        add_object(currentIDNumber, objects[i].name, cubeVert, objects[i].light);
+                        objects.back().transform = objects[i].transform;
+                        if (objects[i].light == true)
+                        {
+                            objects.back().objectColor = objects[i].objectColor;
+                        }
+                    }
+                }
+                
+            }
+            else
+            { // Don't worry about how this works just know it does
+                auto now = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - cooldownStart).count();
+                if (elapsed >= 1)
+                {
+                    duplicateCooldown = false;
+                }
+            }
+        }
     }
 }
 
