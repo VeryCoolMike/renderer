@@ -60,8 +60,6 @@ bool rainbowMode = false;
 float lastFPS = 0.0f;
 
 GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
-
-bool levelEditing = false;
  
 struct gui 
 {
@@ -69,8 +67,8 @@ struct gui
     bool visible;
 };
 
+float currentFrame;
 
-// Put pointers inside the objects array which point to the object(s)
 
 int main(void)
 
@@ -160,8 +158,11 @@ int main(void)
     glEnableVertexAttribArray(1);
 
     /*
-    ███████ ███████ ████████ ██    ██ ██████main
-    ███████ ███████    ██     ██████  ██
+    ███████ ███████ ████████ ██    ██ ██████  
+    ██      ██         ██    ██    ██ ██   ██ 
+    ███████ █████      ██    ██    ██ ██████  
+         ██ ██         ██    ██    ██ ██      
+    ███████ ███████    ██     ██████  ██      
     */
 
     glfwSwapInterval(0); // Set to 0 to turn off v-sync (You should keep this on)
@@ -293,7 +294,7 @@ int main(void)
             printf("%f\n",lastFPS);
         }
 
-        float currentFrame = glfwGetTime();
+        currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
@@ -303,6 +304,7 @@ int main(void)
         glm::vec3 direction;
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         direction.y = sin(glm::radians(pitch));
+        //direction.y = 0.0f;
         direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         cameraFront = glm::normalize(direction);
 
@@ -313,6 +315,13 @@ int main(void)
         glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
 
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+
+        if (!levelEditing)
+        {
+            direction.y = 0.0f;
+        }
+
+        
         regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
 
@@ -417,7 +426,7 @@ int main(void)
 
         if (rainbowMode)
         {
-
+ 
             lightcolor[0] = (sin(currentFrame) * 0.5 + 0.5);          // Red (0.0 to 1.0)
             lightcolor[1] = (sin(currentFrame + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
             lightcolor[2] = (sin(currentFrame + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
@@ -426,6 +435,8 @@ int main(void)
             backgroundColor[1] = (sin(currentFrame + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
             backgroundColor[0] = (sin(currentFrame + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
         }
+
+        
 
         // !-X-X-X-X-X-! GUI !-X-X-X-X-X-!
         if (gui_visible)
@@ -506,6 +517,7 @@ int main(void)
 
 
             ImGui::Checkbox("Rainbow mode!!!", &rainbowMode);
+
 
             for (int n = 0; n < objects.size(); ++n)
             {

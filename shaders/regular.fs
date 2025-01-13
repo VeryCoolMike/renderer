@@ -11,7 +11,7 @@ in vec2 TexCoord;
 in vec3 Normal;
 in vec3 FragPos;
 
-#define MAX_LIGHTS 10
+#define MAX_LIGHTS 50
 
 uniform sampler2D currentTexture;
 uniform vec3 objectColor;
