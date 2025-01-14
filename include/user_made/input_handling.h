@@ -167,20 +167,9 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
     }
 
     float camera_speed = real_camera_speed * deltaTime;
-    // Jumping will be worked on later
-    /*
-    auto now2 = std::chrono::high_resolution_clock::now();
-    auto elapsed2 = std::chrono::duration_cast<std::chrono::seconds>(now2 - jumpCooldown).count();
-    if (elapsed2 >= 0.3f)
-    {
-        gravity = 9.81f;
-    }
-    else
-    {
-        printf("JUMPING!\n");
-        targetMovementVector.y += 15.0f * deltaTime;
-    }
-    */
+
+    
+    
     if (gui_visible == false)
     {
         if (levelEditing)
@@ -213,6 +202,21 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         else
         {
             targetMovementVector = glm::vec3(0.0f);
+            // Jumping
+            auto now2 = std::chrono::high_resolution_clock::now();
+            auto elapsed2 = std::chrono::duration_cast<std::chrono::milliseconds>(now2 - jumpCooldown).count();
+            if (elapsed2 >= 300.0f)
+            {
+                gravity = 9.81f;
+            }
+            else
+            {
+                //printf("JUMPING!\n");
+                targetMovementVector.y += 7500.0f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime;
+                gravity = 9.81 * ((elapsed2 / 100.0) * 0.33); // 0.3
+                printf("%f - %ld - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0);
+            }
+            
             real_camera_speed = 5.0f;
             cameraFront.y = 0.0f; // Ignore vertical movement
             cameraFront = glm::normalize(cameraFront);
@@ -235,7 +239,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             {
                 targetMovementVector -= glm::normalize(glm::cross(cameraFront, cameraUp));
             }
-            /*
+
             if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
             {
                 if (grounded == true)
@@ -246,7 +250,6 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                     jumpCooldown = std::chrono::high_resolution_clock::now();
                 }
             }
-            */
 
             //targetMovementVector = glm::normalize(targetMovementVector) * camera_speed;
 
@@ -258,7 +261,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                 float sway = std::sin(glfwGetTime() * swaySpeed) * swayAmount;
                 cameraPos.y += sway;
             }
-            std::cout << movementVector.x << "-" << movementVector.y << "-" << movementVector.z<< std::endl;
+            //std::cout << movementVector.x << "-" << movementVector.y << "-" << movementVector.z<< std::endl;
             cameraPos += movementVector;
         }
     }
