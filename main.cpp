@@ -418,6 +418,7 @@ int main(void)
 
         regularShader.use();
 
+
         // Update things
         glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
         regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
@@ -426,7 +427,6 @@ int main(void)
 
         if (rainbowMode)
         {
- 
             lightcolor[0] = (sin(currentFrame) * 0.5 + 0.5);          // Red (0.0 to 1.0)
             lightcolor[1] = (sin(currentFrame + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
             lightcolor[2] = (sin(currentFrame + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)

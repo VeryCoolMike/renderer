@@ -251,6 +251,77 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                 }
             }
 
+            // Collision detection
+            for (int i = 0; i < objects.size(); i++) {
+                const auto& one = cameraPos;
+                const auto& two = objects[i].transform;
+                // Expanding the scale to stop camera phasing through the wall
+
+                if (two.pos.y < -4.0f) { // Ignore floor
+                    continue;
+                }
+
+                float expansion = 0.5f;
+
+                glm::vec3 minBounds = {
+                    two.pos.x - (two.scale.x+expansion)/2,
+                    two.pos.y - (two.scale.y+expansion)/2,
+                    two.pos.z - (two.scale.z+expansion)/2
+                };
+
+                glm::vec3 maxBounds = {
+                    two.pos.x + (two.scale.x+expansion)/2,
+                    two.pos.y + (two.scale.y+expansion)/2,
+                    two.pos.z + (two.scale.z+expansion)/2
+                };
+
+                // Adjust for centered origin by offsetting the position by half the scale
+                bool collisionX = (one.x >= minBounds.x && one.x <= maxBounds.x);
+                bool collisionY = (one.y >= minBounds.y && one.y <= maxBounds.y);
+                bool collisionZ = (one.z >= minBounds.z && one.z <= maxBounds.z);
+
+                if (collisionX && collisionY && collisionZ)
+                {
+                    // Shortest distance to penetrate against X and Z
+                    float penetrationX = std::min(maxBounds.x - one.x, one.x - minBounds.x);
+                    float penetrationZ = std::min(maxBounds.z - one.z, one.z - minBounds.z);
+                    
+                    // Closer to the X axis
+                    if (penetrationX < penetrationZ)
+                    {
+                        float direction;
+                        if (one.x - two.pos.x < 0.0f)
+                        {
+                            direction = -1.0f;
+                        }
+                        else
+                        {
+                            direction = 1.0f;
+                        }
+
+                        cameraPos.x = two.pos.x + direction * (two.scale.x + expansion) / 2;
+                        //targetMovementVector.x = 0;
+                    }
+                    else
+                    {
+                        float direction;
+                        if (one.z - two.pos.z < 0.0f)
+                        {
+                            direction = -1.0f;
+                        }
+                        else
+                        {
+                            direction = 1.0f;
+                        }
+
+                        cameraPos.z = two.pos.z + direction * (two.scale.z + expansion) / 2;
+                        //targetMovementVector.z = 0;
+                    }
+                }
+            }
+            
+            
+
             //targetMovementVector = glm::normalize(targetMovementVector) * camera_speed;
 
             // Smooth transition to the target vector

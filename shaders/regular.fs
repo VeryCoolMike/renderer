@@ -25,6 +25,7 @@ uniform PointLight pointLights[MAX_LIGHTS];
 
 vec3 calcPointLight(PointLight light)
 {
+    float distance = length(light.position - FragPos);
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(light.position - FragPos);
     vec3 viewDir = normalize(viewPos - FragPos);
@@ -40,7 +41,6 @@ vec3 calcPointLight(PointLight light)
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * light.color;
     
-    float distance = length(light.position - FragPos);
     float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * (distance * distance));
     
     ambient *= attenuation;
