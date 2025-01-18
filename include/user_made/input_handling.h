@@ -1,13 +1,12 @@
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 
 void processInput(GLFWwindow *window);
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-
+void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
 // Camera stuff
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -43,27 +42,30 @@ std::chrono::time_point<std::chrono::high_resolution_clock> cooldownStart;
 
 std::chrono::time_point<std::chrono::high_resolution_clock> jumpCooldown;
 
-
 extern std::vector<object> objects;
 
 glm::vec3 movementVector = glm::vec3(0.0f, 0.0f, 0.0f);
 
 bool levelEditing;
 
-float swaySpeed = 5.0f; // Controls sway speed
+float swaySpeed = 5.0f;      // Controls sway speed
 float swayAmount = 0.00005f; // Controls sway magnitude
 
 bool grounded;
 
+bool ignore_collisions = false;
+
 float gravity = 9.81f;
+float originalgravity = gravity;
+
+float height = 2.5f;
 
 extern float currentFrame;
 
 glm::vec3 targetMovementVector(0.0f);
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-    
 
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
@@ -117,20 +119,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
                 cameraPos = glm::vec3(0.0f, 0.0f, 0.0f);
             }
         }
-        
-    }
-
-    if (key == GLFW_KEY_X && action == GLFW_RELEASE)
-    {
-        if (fullBright == false)
-        {
-            fullBright = true;
-            printf("Fullbright enabled\n");
-        }
-        else
-        {
-            fullBright = false;
-        }
     }
 
     if (key == GLFW_KEY_TAB && action == GLFW_RELEASE)
@@ -148,28 +136,24 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
     glViewport(0, 0, width, height);
 }
 
 void processInput(GLFWwindow *window) // This is perfect frame input for things that are held down
 {
+
     if (!levelEditing)
     {
-        cameraPos.y -= gravity * deltaTime;
-
-        if (cameraPos.y <= -2.5f) {
-            cameraPos.y = -2.5f;
-            grounded = true;
+        if (!grounded)
+        {
+            cameraPos.y -= gravity * deltaTime;
         }
-        
     }
 
     float camera_speed = real_camera_speed * deltaTime;
 
-    
-    
     if (gui_visible == false)
     {
         if (levelEditing)
@@ -198,142 +182,6 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             {
                 cameraPos += camera_speed * -cameraUp;
             }
-        }
-        else
-        {
-            targetMovementVector = glm::vec3(0.0f);
-            // Jumping
-            auto now2 = std::chrono::high_resolution_clock::now();
-            auto elapsed2 = std::chrono::duration_cast<std::chrono::milliseconds>(now2 - jumpCooldown).count();
-            if (elapsed2 >= 300.0f)
-            {
-                gravity = 9.81f;
-            }
-            else
-            {
-                //printf("JUMPING!\n");
-                targetMovementVector.y += 7500.0f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime;
-                gravity = 9.81 * ((elapsed2 / 100.0) * 0.33); // 0.3
-                printf("%f - %ld - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0);
-            }
-            
-            real_camera_speed = 5.0f;
-            cameraFront.y = 0.0f; // Ignore vertical movement
-            cameraFront = glm::normalize(cameraFront);
-
-            movementVector = glm::vec3(0.0f, 0.0f, 0.0f);
-            
-            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            {
-                targetMovementVector += cameraFront;
-            }
-            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            {
-                targetMovementVector -= cameraFront;
-            }
-            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            {
-                targetMovementVector += glm::normalize(glm::cross(cameraFront, cameraUp));
-            }
-            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            {
-                targetMovementVector -= glm::normalize(glm::cross(cameraFront, cameraUp));
-            }
-
-            if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-            {
-                if (grounded == true)
-                {// Adjust gravity throughout jump
-                    //targetMovementVector.y = 150.0f;         // Red (0.0 to 1.0);
-                    grounded = false;
-                    gravity = 0.0f;
-                    jumpCooldown = std::chrono::high_resolution_clock::now();
-                }
-            }
-
-            // Collision detection
-            for (int i = 0; i < objects.size(); i++) {
-                const auto& one = cameraPos;
-                const auto& two = objects[i].transform;
-                // Expanding the scale to stop camera phasing through the wall
-
-                if (two.pos.y < -4.0f) { // Ignore floor
-                    continue;
-                }
-
-                float expansion = 0.5f;
-
-                glm::vec3 minBounds = {
-                    two.pos.x - (two.scale.x+expansion)/2,
-                    two.pos.y - (two.scale.y+expansion)/2,
-                    two.pos.z - (two.scale.z+expansion)/2
-                };
-
-                glm::vec3 maxBounds = {
-                    two.pos.x + (two.scale.x+expansion)/2,
-                    two.pos.y + (two.scale.y+expansion)/2,
-                    two.pos.z + (two.scale.z+expansion)/2
-                };
-
-                // Adjust for centered origin by offsetting the position by half the scale
-                bool collisionX = (one.x >= minBounds.x && one.x <= maxBounds.x);
-                bool collisionY = (one.y >= minBounds.y && one.y <= maxBounds.y);
-                bool collisionZ = (one.z >= minBounds.z && one.z <= maxBounds.z);
-
-                if (collisionX && collisionY && collisionZ)
-                {
-                    // Shortest distance to penetrate against X and Z
-                    float penetrationX = std::min(maxBounds.x - one.x, one.x - minBounds.x);
-                    float penetrationZ = std::min(maxBounds.z - one.z, one.z - minBounds.z);
-                    
-                    // Closer to the X axis
-                    if (penetrationX < penetrationZ)
-                    {
-                        float direction;
-                        if (one.x - two.pos.x < 0.0f)
-                        {
-                            direction = -1.0f;
-                        }
-                        else
-                        {
-                            direction = 1.0f;
-                        }
-
-                        cameraPos.x = two.pos.x + direction * (two.scale.x + expansion) / 2;
-                        //targetMovementVector.x = 0;
-                    }
-                    else
-                    {
-                        float direction;
-                        if (one.z - two.pos.z < 0.0f)
-                        {
-                            direction = -1.0f;
-                        }
-                        else
-                        {
-                            direction = 1.0f;
-                        }
-
-                        cameraPos.z = two.pos.z + direction * (two.scale.z + expansion) / 2;
-                        //targetMovementVector.z = 0;
-                    }
-                }
-            }
-            
-            
-
-            //targetMovementVector = glm::normalize(targetMovementVector) * camera_speed;
-
-            // Smooth transition to the target vector
-            movementVector = glm::mix(movementVector, targetMovementVector, deltaTime * 5.0f);
-
-
-            if (glm::length(movementVector) > 0.0f) {
-                float sway = std::sin(glfwGetTime() * swaySpeed) * swayAmount;
-                cameraPos.y += sway;
-            }
-            //std::cout << movementVector.x << "-" << movementVector.y << "-" << movementVector.z<< std::endl;
-            cameraPos += movementVector;
         }
     }
     else
@@ -369,10 +217,238 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         }
     }
 
-    
+    // Playing movement
+
+    if (!levelEditing)
+    {
+        targetMovementVector = glm::vec3(0.0f);
+
+        real_camera_speed = 5.0f;
+        cameraFront.y = 0.0f; // Ignore vertical movement
+        cameraFront = glm::normalize(cameraFront);
+
+        movementVector = glm::vec3(0.0f, 0.0f, 0.0f);
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        {
+            targetMovementVector += cameraFront;
+        }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        {
+            targetMovementVector -= cameraFront;
+        }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            targetMovementVector += glm::normalize(glm::cross(cameraFront, cameraUp));
+        }
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            targetMovementVector -= glm::normalize(glm::cross(cameraFront, cameraUp));
+        }
+
+        bool found_collision = false;
+
+        // Collision detection
+        for (int i = 0; i < objects.size(); i++)
+        {
+            if (objects[i].enabled == false)
+            {
+                continue;
+            }
+
+            const auto one = cameraPos;
+            const auto two = objects[i].transform;
+            // Expanding the scale to stop camera phasing through the wall
+
+            float expansion = 0.5f;
+
+            glm::vec3 minBounds =
+                {
+                    two.pos.x - (two.scale.x + expansion) / 2,
+                    two.pos.y - (two.scale.y + expansion) / 2,
+                    two.pos.z - (two.scale.z + expansion) / 2};
+
+            glm::vec3 maxBounds =
+                {
+                    two.pos.x + (two.scale.x + expansion) / 2,
+                    two.pos.y + (two.scale.y + expansion) / 2,
+                    two.pos.z + (two.scale.z + expansion) / 2};
+
+            // Adjust for centered origin by offsetting the position by half the scale
+            bool collisionX = (one.x >= minBounds.x && one.x <= maxBounds.x);
+            bool collisionY = (one.y >= minBounds.y && (one.y - height) <= maxBounds.y);
+            bool collisionZ = (one.z >= minBounds.z && one.z <= maxBounds.z);
+
+            if (collisionX && collisionY && collisionZ && !ignore_collisions)
+            {
+                std::cout << objects[i].name << std::endl;
+
+                // Shortest distance to penetrate against X and Z
+                float penetrationX = std::min(maxBounds.x - one.x, one.x - minBounds.x);
+                float penetrationY = std::min(maxBounds.y - one.y, one.y - height - minBounds.y);
+                float penetrationZ = std::min(maxBounds.z - one.z, one.z - minBounds.z);
+
+                // Closer to the X axis
+                if (penetrationX < penetrationZ && penetrationX < penetrationY) // X collision
+                {
+                    float direction;
+                    if (one.x - two.pos.x < 0.0f)
+                    {
+                        direction = -1.0f;
+                    }
+                    else
+                    {
+                        direction = 1.0f;
+                    }
+
+                    cameraPos.x = two.pos.x + direction * (two.scale.x + expansion) / 2;
+                }
+                else if (penetrationZ < penetrationY) // Z collision
+                {
+                    float direction;
+                    if (one.z - two.pos.z < 0.0f)
+                    {
+                        direction = -1.0f;
+                    }
+                    else
+                    {
+                        direction = 1.0f;
+                    }
+
+                    cameraPos.z = two.pos.z + direction * (two.scale.z + expansion) / 2;
+                }
+                else // Y collision
+                {
+                    float direction;
+                    if (one.y - two.pos.y < 0.0f) // Hitting from below
+                    {
+                        direction = -1.0f;
+                        targetMovementVector.y -= 3.0f;
+                    }
+                    else // Hitting from above
+                    {
+                        found_collision = true;
+                        direction = 1.0f;
+                        targetMovementVector.y += 3.0f;
+                    }
+                }
+            }
+        }
+
+        if (found_collision)
+        {
+            grounded = true;
+        }
+        else
+        {
+            grounded = false;
+        }
+
+        std::cout << grounded << std::endl;
+
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            if (grounded == true)
+            { // Adjust gravity throughout jump
+                // targetMovementVector.y = 150.0f;         // Red (0.0 to 1.0);
+                grounded = false;
+                gravity = 0.0f;
+                jumpCooldown = std::chrono::high_resolution_clock::now();
+                // cameraPos.y += 1.0f;
+            }
+        }
+
+        // Jumping
+        auto now2 = std::chrono::high_resolution_clock::now();
+        auto elapsed2 = std::chrono::duration_cast<std::chrono::milliseconds>(now2 - jumpCooldown).count();
+        if (elapsed2 >= 300.0f)
+        {
+            gravity = 9.81f;
+        }
+        else
+        {
+            // printf("JUMPING!\n");
+            cameraPos.y += 15.0f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime;
+            gravity = 9.81 * ((elapsed2 / 100.0) * 0.33); // 0.3
+            printf("%f - %ld - %f - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0, cameraPos.y);
+            printf("%f\n", 0.3f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime);
+        }
+        // Smooth transition to the target vector
+        movementVector = glm::mix(movementVector, targetMovementVector, deltaTime * 5.0f);
+
+        if (glm::length(movementVector) > 0.0f)
+        {
+            float sway = std::sin(glfwGetTime() * swaySpeed) * swayAmount;
+            cameraPos.y += sway;
+        }
+
+        cameraPos += movementVector;
+    }
+    else // Is level editing
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // Duplicate
+        {
+            if (duplicateCooldown == false)
+            {
+                duplicateCooldown = true;
+                cooldownStart = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < objects.size(); i++)
+                {
+                    if (objects[i].selected == true)
+                    {
+                        add_object(currentIDNumber, objects[i].name, cubeVert, objects[i].light);
+                        objects.back().transform = objects[i].transform;
+                        if (objects[i].light == true)
+                        {
+                            objects.back().objectColor = objects[i].objectColor;
+                        }
+                    }
+                }
+            }
+            else
+            { // Don't worry about how this works just know it does
+                auto now = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - cooldownStart).count();
+                if (elapsed >= 1)
+                {
+                    duplicateCooldown = false;
+                }
+            }
+        }
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // Duplicate
+    {
+        if (duplicateCooldown == false)
+        {
+            duplicateCooldown = true;
+            cooldownStart = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < objects.size(); i++)
+            {
+                if (objects[i].selected == true)
+                {
+                    add_object(currentIDNumber, objects[i].name, cubeVert, objects[i].light);
+                    objects.back().transform = objects[i].transform;
+                    if (objects[i].light == true)
+                    {
+                        objects.back().objectColor = objects[i].objectColor;
+                    }
+                }
+            }
+        }
+        else
+        { // Don't worry about how this works just know it does
+            auto now = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - cooldownStart).count();
+            if (elapsed >= 1)
+            {
+                duplicateCooldown = false;
+            }
+        }
+    }
 }
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
 {
     if (!mouselocked)
     {
@@ -390,7 +466,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     }
 }
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 {
 
     if (!mouselocked)
@@ -404,9 +480,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
         lastY = ypos;
         firstMouse = false;
     }
-  
+
     float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; 
+    float yoffset = lastY - ypos;
     lastX = xpos;
     lastY = ypos;
 
@@ -414,18 +490,18 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
-    yaw   += xoffset;
+    yaw += xoffset;
     pitch += yoffset;
 
-    if(pitch > 89.0f)
+    if (pitch > 89.0f)
         pitch = 89.0f;
-    if(pitch < -89.0f)
+    if (pitch < -89.0f)
         pitch = -89.0f;
 
     glm::vec3 direction;
     direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    //direction.y = sin(glm::radians(pitch));
+    // direction.y = sin(glm::radians(pitch));
     direction.y = 0.0f;
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    //cameraFront = glm::normalize(direction);
-}  
+    // cameraFront = glm::normalize(direction);
+}

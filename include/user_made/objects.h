@@ -38,6 +38,7 @@ struct object
     unsigned int texture = 1;
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
     bool selected = false;
+    bool canCollide = true;
 };
 
 
