@@ -8,8 +8,6 @@
 
 #include <vector>
 
-
-// Linked list :money:
 int currentIDNumber = 0;
 int currentLightID = 0;
 

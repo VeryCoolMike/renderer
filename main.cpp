@@ -69,6 +69,12 @@ struct gui
 
 float currentFrame;
 
+glm::mat4 proj;
+
+glm::mat4 view;
+
+glm::mat4 model;
+
 
 int main(void)
 
@@ -86,7 +92,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create the window (width, height, name, monitor, ???)
-    GLFWwindow *window = glfwCreateWindow(1920, 1080, "Simple rendering", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(1920, 1080, "A little more complex rendering", NULL, NULL);
     if (window == NULL) // Check if the window was made correctly
     {
         error("Failed to create window!\n");
@@ -215,6 +221,7 @@ int main(void)
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetKeyCallback(window, key_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -251,10 +258,12 @@ int main(void)
     glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-    add_object(currentIDNumber, "box", cubeVert, false);
     add_object(currentIDNumber, "floor", cubeVert, false);
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
+
+    add_object(currentIDNumber, "box", cubeVert, false);
+    
 
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
     {

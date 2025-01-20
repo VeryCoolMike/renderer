@@ -8,6 +8,8 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+
 // Camera stuff
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
 glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -55,14 +57,24 @@ bool grounded;
 
 bool ignore_collisions = false;
 
-float gravity = 9.81f;
+float gravity = 14.00f;
 float originalgravity = gravity;
 
 float height = 2.5f;
 
 extern float currentFrame;
 
+int mouse_x = 0;
+int mouse_y = 0;
+
 glm::vec3 targetMovementVector(0.0f);
+
+extern glm::mat4 proj;
+extern glm::mat4 view;
+extern glm::mat4 model;
+
+const float EPSILON = 0.000001f;
+bool debounce = false;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -229,6 +241,8 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
 
         movementVector = glm::vec3(0.0f, 0.0f, 0.0f);
 
+        // https://www.youtube.com/watch?v=v3zT3Z5apaM&t=1s
+
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         {
             targetMovementVector += cameraFront;
@@ -281,7 +295,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
 
             if (collisionX && collisionY && collisionZ && !ignore_collisions)
             {
-                std::cout << objects[i].name << std::endl;
+                //std::cout << objects[i].name << std::endl;
 
                 // Shortest distance to penetrate against X and Z
                 float penetrationX = std::min(maxBounds.x - one.x, one.x - minBounds.x);
@@ -344,7 +358,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             grounded = false;
         }
 
-        std::cout << grounded << std::endl;
+        //std::cout << grounded << std::endl;
 
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         {
@@ -361,17 +375,17 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         // Jumping
         auto now2 = std::chrono::high_resolution_clock::now();
         auto elapsed2 = std::chrono::duration_cast<std::chrono::milliseconds>(now2 - jumpCooldown).count();
-        if (elapsed2 >= 300.0f)
+        if (elapsed2 >= 400.0f)
         {
-            gravity = 9.81f;
+            gravity = originalgravity;
         }
         else
         {
             // printf("JUMPING!\n");
             cameraPos.y += 15.0f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime;
-            gravity = 9.81 * ((elapsed2 / 100.0) * 0.33); // 0.3
-            printf("%f - %ld - %f - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0, cameraPos.y);
-            printf("%f\n", 0.3f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime);
+            gravity = originalgravity * ((elapsed2 / 100.0) * 0.33); // 0.3
+            //printf("%f - %ld - %f - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0, cameraPos.y);
+            //printf("%f\n", 0.3f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime);
         }
         // Smooth transition to the target vector
         movementVector = glm::mix(movementVector, targetMovementVector, deltaTime * 5.0f);
@@ -479,6 +493,8 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
         lastX = xpos;
         lastY = ypos;
         firstMouse = false;
+        mouse_x = xpos;
+        mouse_y = ypos;
     }
 
     float xoffset = xpos - lastX;
@@ -504,4 +520,89 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
     direction.y = 0.0f;
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     // cameraFront = glm::normalize(direction);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) // Currently only works on the first object not any of the others, likely cause, returning at the end after making an object
+{                                                                                // causing both loop (looping through objects and vertices) to exit
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !debounce) // https://antongerdelan.net/opengl/raycasting.html
+    {
+        float closest_intersection = std::numeric_limits<float>::max(); // Largest possible number (Technical limit)
+        bool found_intersection = false;
+        object intersection_object;
+
+        for (int i = 0; i < objects.size(); i++) // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+        {
+            for (int v = 0; v < objects[i].vertices.size(); v += 24) // 8 is the vertex size but we need a vertice so 3 vertexes (8*3)
+            {
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, objects[i].transform.pos);
+                model = glm::scale(model, glm::vec3(objects[i].transform.scale));
+
+                glm::vec3 V0 = glm::vec3(model * glm::vec4(objects[i].vertices[v], objects[i].vertices[v+1], objects[i].vertices[v+2], 1.0f)); // Vertex 1
+                glm::vec3 V1 = glm::vec3(model * glm::vec4(objects[i].vertices[v+8], objects[i].vertices[v+9], objects[i].vertices[v+10], 1.0f)); // Vertex 2
+                glm::vec3 V2 = glm::vec3(model * glm::vec4(objects[i].vertices[v+16], objects[i].vertices[v+17], objects[i].vertices[v+18], 1.0f)); // Vertex 3
+
+                glm::vec3 edge1 = V1 - V0; // e1
+                glm::vec3 edge2 = V2 - V0; // e2
+
+                glm::vec3 cross_product = glm::cross(cameraFront, edge2); // h
+
+                float dot_product = glm::dot(edge1, cross_product); // a
+
+                if (dot_product > -EPSILON && dot_product < EPSILON)
+                {
+                    //std::cout << "1" << std::endl;
+                    continue;
+                }
+
+                float intersection_param = 1.0f / dot_product; // f
+
+                glm::vec3 vector_s = cameraPos - V0; // s
+
+                float dot_product2 = intersection_param * glm::dot(vector_s, cross_product); // u
+                
+                if (dot_product2 < 0 || dot_product2 > 1) // Outside of triangle
+                {
+                    //std::cout << "2" << std::endl;
+                    continue;
+                }
+
+                glm::vec3 cross_product2 = glm::cross(vector_s, edge1); // q
+
+                float dot_product3 = intersection_param * glm::dot(cameraFront, cross_product2); // v
+
+                if (dot_product3 < 0.0f || dot_product2 + dot_product3 > 1.0f)
+                {
+                    //std::cout << "3" << std::endl;
+                    continue;
+                }
+
+                float intersection_point = intersection_param * glm::dot(edge2, cross_product2); // t
+
+                if (intersection_point > EPSILON && intersection_point < closest_intersection)
+                {
+                    closest_intersection = intersection_point;
+                    found_intersection = true;
+                    intersection_object = objects[i];
+                    
+                }
+            }
+        }
+
+        if (found_intersection)
+        {
+            printf("found intersection");
+            glm::vec3 intersectionPos = cameraPos + closest_intersection * cameraFront;
+
+            std::cout << intersectionPos.x << " - " << intersectionPos.y << " - " << intersectionPos.z << std::endl;
+            std::cout << "Objects size: " << objects.size() << std::endl;
+
+            add_object(currentIDNumber, "test", cubeVert, true);
+            objects.back().transform.pos = intersectionPos;
+        }
+        else
+        {
+            printf("no intersection");
+        }
+    }
 }
