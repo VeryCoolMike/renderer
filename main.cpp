@@ -61,27 +61,20 @@ float lastFPS = 0.0f;
 
 GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
  
-struct gui 
-{
-    int id;
-    bool visible;
-};
 
 float currentFrame;
 
 glm::mat4 proj;
-
 glm::mat4 view;
-
 glm::mat4 model;
 
+std::vector<gui> guisVisible;
 
 int main(void)
 
 // Latest: Collision and playing the game
 {
     std::vector<GLuint> textureArray;
-    std::vector<gui> guisVisible;
 
     printf("One must imagine sisyphus happy\n");
 
@@ -480,7 +473,10 @@ int main(void)
             }
 
             if (ImGui::Button("Load")) {
+                guisVisible.clear();
+                objects.clear();
                 regularShader.setInt("lightAmount", LoadFromFile(mapFileName)); // Load from MapFile1.txt
+                
                 for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
                 {
                     if (objects[n].enabled == false) {continue;}
@@ -488,12 +484,6 @@ int main(void)
                     newGui.id = n;
                     newGui.visible = false;
                     guisVisible.push_back(newGui);
-                }
-
-                for (int i = 0; i < guisVisible.size(); i++)
-                {
-                    guisVisible[i].visible = false;
-                    objects[i].selected = false;
                 }
                 
             }
@@ -503,6 +493,7 @@ int main(void)
                 add_object(currentIDNumber, "box", cubeVert, false);
                 objects[currentIDNumber-1].texture = 0;
             }
+            
             if (ImGui::Button("Make Light"))
             {
                 add_object(currentIDNumber, "light", cubeVert, true);
@@ -538,6 +529,21 @@ int main(void)
                 ImGui::Text("ID: %i", objects[n].id);
                 if (ImGui::Button("Edit"))
                 {
+                    {
+                        for (int v = 0; v < guisVisible.size(); v++)
+                        {
+                            if (guisVisible[v].id == n)
+                            {
+                                std::cout << "Found\n";
+                                guisVisible[v].visible = true;
+                            }
+                            else
+                            {
+                                guisVisible[v].visible = false;
+                            }
+                        }
+                    }
+                    /*
                     if (objects[n].id >= 0 && objects[n].id < guisVisible.size())
                     {
                         if (!guisVisible[objects[n].id].visible)
@@ -569,12 +575,32 @@ int main(void)
                         std::cerr << "Error: objects[n].id is out of bounds! " << n << std::endl;
                     }
                     // Check if the current object's GUI is not visible
+                    */
                 }
                 ImGui::NewLine();
                 
                 
                 
                 ImGui::PopID(); // Pop the ID after the widget
+
+                for (int i = 0; i < objects.size(); i++)
+                {
+                    if (objects[i].selected == true)
+                    {
+                        std::cout << "selected object " << i << std::endl;
+                        for (int v = 0; v < guisVisible.size(); v++)
+                        {
+                            if (guisVisible[v].id == i)
+                            {
+                                guisVisible[v].visible = true;
+                            }
+                            else
+                            {
+                                guisVisible[v].visible = false;
+                            }
+                        }
+                    }
+                }
 
                 try // Segmentation fault :(
                 {

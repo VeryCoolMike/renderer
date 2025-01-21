@@ -1,3 +1,5 @@
+#include "helper.h"
+
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
@@ -73,8 +75,17 @@ extern glm::mat4 proj;
 extern glm::mat4 view;
 extern glm::mat4 model;
 
-const float EPSILON = 0.000001f;
 bool debounce = false;
+
+extern float fov;
+
+struct gui 
+{
+    int id;
+    bool visible;
+};
+
+extern std::vector<gui> guisVisible;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -482,7 +493,8 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 {
-
+    mouse_x = xpos;
+    mouse_y = ypos;
     if (!mouselocked)
     {
         firstMouse = true;
@@ -493,8 +505,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
         lastX = xpos;
         lastY = ypos;
         firstMouse = false;
-        mouse_x = xpos;
-        mouse_y = ypos;
+        
     }
 
     float xoffset = xpos - lastX;
@@ -526,83 +537,58 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {                                                                                // causing both loop (looping through objects and vertices) to exit
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !debounce) // https://antongerdelan.net/opengl/raycasting.html
     {
-        float closest_intersection = std::numeric_limits<float>::max(); // Largest possible number (Technical limit)
-        bool found_intersection = false;
-        object intersection_object;
+        // https://antongerdelan.net/opengl/raycasting.html
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
 
-        for (int i = 0; i < objects.size(); i++) // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+        float x = (2.0f * mouse_x) / width - 1.0f;
+        float y = 1.0f - (2.0f * mouse_y) / height;
+
+        glm::mat4 projection_model = glm::perspective(glm::radians(fov), (float)width / (float)height, 0.1f, 1000.0f);
+        glm::mat4 view_model = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+
+        glm::vec4 ray_clip = glm::vec4(x, y, -1.0f, 1.0f);
+
+        glm::vec4 ray_eye = glm::inverse(projection_model) * ray_clip;
+        ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+
+        glm::vec4 ray_wor = (glm::inverse(view_model) * ray_eye);
+        glm::vec3 ray_dir = glm::normalize(glm::vec3(ray_wor));
+
+        std::cout << "Mouse coordinates: " << mouse_x << ", " << mouse_y << std::endl;
+        std::cout << "Ray direction: " << ray_wor.x << ", " << ray_wor.y << ", " << ray_wor.z << std::endl;
+
+        std::cout << cameraFront.x << " - " << cameraFront.y << " - " << cameraFront.z << std::endl;
+        ray_cast gun_ray = raycast(cameraPos, ray_wor);
+        if (gun_ray.valid == true)
         {
-            for (int v = 0; v < objects[i].vertices.size(); v += 24) // 8 is the vertex size but we need a vertice so 3 vertexes (8*3)
+            std::cout << "Hit!\n";
+            if (levelEditing || gui_visible)
             {
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, objects[i].transform.pos);
-                model = glm::scale(model, glm::vec3(objects[i].transform.scale));
-
-                glm::vec3 V0 = glm::vec3(model * glm::vec4(objects[i].vertices[v], objects[i].vertices[v+1], objects[i].vertices[v+2], 1.0f)); // Vertex 1
-                glm::vec3 V1 = glm::vec3(model * glm::vec4(objects[i].vertices[v+8], objects[i].vertices[v+9], objects[i].vertices[v+10], 1.0f)); // Vertex 2
-                glm::vec3 V2 = glm::vec3(model * glm::vec4(objects[i].vertices[v+16], objects[i].vertices[v+17], objects[i].vertices[v+18], 1.0f)); // Vertex 3
-
-                glm::vec3 edge1 = V1 - V0; // e1
-                glm::vec3 edge2 = V2 - V0; // e2
-
-                glm::vec3 cross_product = glm::cross(cameraFront, edge2); // h
-
-                float dot_product = glm::dot(edge1, cross_product); // a
-
-                if (dot_product > -EPSILON && dot_product < EPSILON)
+                int gun_hit_id = gun_ray.hit.id;
+                for (int i = 0; i < objects.size(); i++)
                 {
-                    //std::cout << "1" << std::endl;
-                    continue;
-                }
-
-                float intersection_param = 1.0f / dot_product; // f
-
-                glm::vec3 vector_s = cameraPos - V0; // s
-
-                float dot_product2 = intersection_param * glm::dot(vector_s, cross_product); // u
-                
-                if (dot_product2 < 0 || dot_product2 > 1) // Outside of triangle
-                {
-                    //std::cout << "2" << std::endl;
-                    continue;
-                }
-
-                glm::vec3 cross_product2 = glm::cross(vector_s, edge1); // q
-
-                float dot_product3 = intersection_param * glm::dot(cameraFront, cross_product2); // v
-
-                if (dot_product3 < 0.0f || dot_product2 + dot_product3 > 1.0f)
-                {
-                    //std::cout << "3" << std::endl;
-                    continue;
-                }
-
-                float intersection_point = intersection_param * glm::dot(edge2, cross_product2); // t
-
-                if (intersection_point > EPSILON && intersection_point < closest_intersection)
-                {
-                    closest_intersection = intersection_point;
-                    found_intersection = true;
-                    intersection_object = objects[i];
                     
+                    if (objects[i].id == gun_hit_id)
+                    {
+                        std::cout << gun_ray.hit.name << std::endl;
+                        objects[i].selected = true;
+                    }
+                    else
+                    {
+                        objects[i].selected = false;
+                    }
                 }
+                
+                
             }
-        }
-
-        if (found_intersection)
-        {
-            printf("found intersection");
-            glm::vec3 intersectionPos = cameraPos + closest_intersection * cameraFront;
-
-            std::cout << intersectionPos.x << " - " << intersectionPos.y << " - " << intersectionPos.z << std::endl;
-            std::cout << "Objects size: " << objects.size() << std::endl;
-
-            add_object(currentIDNumber, "test", cubeVert, true);
-            objects.back().transform.pos = intersectionPos;
         }
         else
         {
-            printf("no intersection");
+            for (int i = 0; i < objects.size(); i++)
+            {
+                objects[i].selected = false;
+            }
         }
     }
 }
