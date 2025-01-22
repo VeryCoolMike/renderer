@@ -16,18 +16,18 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){
     for (int i = 0; i < objects.size(); i++) // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
     {
         if (objects[i].name == "test")
-        {
+        { 
             continue;
         }
-        for (int v = 0; v < objects[i].vertices.size(); v += 24) // 8 is the vertex size but we need a vertice so 3 vertexes (8*3)
+        for (int v = 0; v < objects[i].vertices.position.size(); v += 3) // 8 is the vertex size but we need a vertice so 3 vertexes (8*3)
         {
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, objects[i].transform.pos);
             model = glm::scale(model, glm::vec3(objects[i].transform.scale));
 
-            glm::vec3 V0 = glm::vec3(model * glm::vec4(objects[i].vertices[v], objects[i].vertices[v+1], objects[i].vertices[v+2], 1.0f)); // Vertex 1
-            glm::vec3 V1 = glm::vec3(model * glm::vec4(objects[i].vertices[v+8], objects[i].vertices[v+9], objects[i].vertices[v+10], 1.0f)); // Vertex 2
-            glm::vec3 V2 = glm::vec3(model * glm::vec4(objects[i].vertices[v+16], objects[i].vertices[v+17], objects[i].vertices[v+18], 1.0f)); // Vertex 3
+            glm::vec3 V0 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v], 1.0f)); // Vertex 1
+            glm::vec3 V1 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v+1], 1.0f)); // Vertex 2
+            glm::vec3 V2 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v+2], 1.0f)); // Vertex 3
 
             glm::vec3 edge1 = V1 - V0; // e1
             glm::vec3 edge2 = V2 - V0; // e2

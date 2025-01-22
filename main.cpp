@@ -23,6 +23,10 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 #include "include/user_made/objects.h"
 #include "include/user_made/vertices.h"
 #include "include/user_made/input_handling.h"
@@ -203,6 +207,12 @@ int main(void)
         std::cout << textureArray[i] << std::endl;
     }
 
+    // Loading files
+    vertices cone_obj = loadObj("resources/models/cone.obj");
+    std::cout << cone_obj.position[0].x << std::endl;
+    std::cout << cone_obj.position[0].y << std::endl;
+    std::cout << cone_obj.position[0].z << std::endl;
+
     /*
      ██████  ██    ██ ██
     ██       ██    ██ ██
@@ -225,6 +235,7 @@ int main(void)
     ImGui_ImplOpenGL3_Init("#version 330");
     io.FontGlobalScale = 2.0f;
     io.IniFilename = nullptr;
+    
 
     // Restore main window context
     glfwMakeContextCurrent(window);
@@ -255,7 +266,7 @@ int main(void)
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
-    add_object(currentIDNumber, "box", cubeVert, false);
+    add_object(currentIDNumber, "box", cone_obj, false);
     
 
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
@@ -342,7 +353,24 @@ int main(void)
         {
             if (objects[i].enabled == false) {continue;}
             const auto& obj = objects[i];
-            glBufferData(GL_ARRAY_BUFFER, obj.vertices.size() * sizeof(float), obj.vertices.data(), GL_DYNAMIC_DRAW);
+            std::vector<float> temp_data = {};
+            for (int i = 0; i < obj.vertices.position.size(); i++) // This is so SO stupid
+            {
+                // Positions
+                temp_data.push_back(obj.vertices.position[i].x);
+                temp_data.push_back(obj.vertices.position[i].y);
+                temp_data.push_back(obj.vertices.position[i].z);
+                
+                // Texture Coordinates
+                temp_data.push_back(obj.vertices.texCoords[i][0]);
+                temp_data.push_back(obj.vertices.texCoords[i][1]);
+
+                // Normals
+                temp_data.push_back(obj.vertices.normal[i][0]);
+                temp_data.push_back(obj.vertices.normal[i][1]);
+                temp_data.push_back(obj.vertices.normal[i][2]);
+            }
+            glBufferData(GL_ARRAY_BUFFER, temp_data.size() * sizeof(float), temp_data.data(), GL_DYNAMIC_DRAW);
 
 
             if (obj.light)
@@ -400,7 +428,9 @@ int main(void)
                 glUniformMatrix4fv(glGetUniformLocation(regularShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
             }
             
-            glDrawArrays(GL_TRIANGLES, 0, objects[i].vertices.size() / (vertexsize) * 3);
+
+            glDrawArrays(GL_TRIANGLES, 0, temp_data.size());
+            
         }
 
         // Needs to be here for some reason or light vertex shader will stop working?????
@@ -493,7 +523,7 @@ int main(void)
                 add_object(currentIDNumber, "box", cubeVert, false);
                 objects[currentIDNumber-1].texture = 0;
             }
-            
+
             if (ImGui::Button("Make Light"))
             {
                 add_object(currentIDNumber, "light", cubeVert, true);
@@ -518,24 +548,31 @@ int main(void)
 
             ImGui::Checkbox("Rainbow mode!!!", &rainbowMode);
 
+            ImGui::NewLine();
+            ImGui::Text("Browser");
+            ImGui::NewLine();
 
             for (int n = 0; n < objects.size(); ++n)
             {
                 if (objects[n].enabled == false) {continue;}
                 ImGui::PushID(n); // Push the index as the unique ID
                 std::string text = objects[n].name + std::to_string(n);
-                ImGui::Text("%s", text.c_str());
                 
-                ImGui::Text("ID: %i", objects[n].id);
-                if (ImGui::Button("Edit"))
+                if (ImGui::Button(text.c_str()))
                 {
                     {
                         for (int v = 0; v < guisVisible.size(); v++)
                         {
                             if (guisVisible[v].id == n)
                             {
-                                std::cout << "Found\n";
-                                guisVisible[v].visible = true;
+                                if (guisVisible[v].visible == true)
+                                {
+                                    guisVisible[v].visible = false;
+                                }
+                                else
+                                {
+                                    guisVisible[v].visible = true;
+                                }
                             }
                             else
                             {
@@ -543,41 +580,8 @@ int main(void)
                             }
                         }
                     }
-                    /*
-                    if (objects[n].id >= 0 && objects[n].id < guisVisible.size())
-                    {
-                        if (!guisVisible[objects[n].id].visible)
-                        {
-                            // Hide all other GUIs and deselect all objects
-                            for (int i = 0; i < guisVisible.size(); i++)
-                            {
-                                guisVisible[i].visible = false;
-                                
-                            }
-                            for (int v = 0; v < objects.size(); v++)
-                            {
-                                objects[v].selected = false;
-                            }
-
-                            // Show the GUI and select the current object
-                            guisVisible[objects[n].id].visible = true;
-                            objects[n].selected = true;
-                        }
-                        else
-                        {
-                            // Hide the GUI and deselect the current object
-                            guisVisible[objects[n].id].visible = false;
-                            objects[n].selected = false;
-                        }
-                    }
-                    else
-                    {
-                        std::cerr << "Error: objects[n].id is out of bounds! " << n << std::endl;
-                    }
-                    // Check if the current object's GUI is not visible
-                    */
                 }
-                ImGui::NewLine();
+                //ImGui::NewLine();
                 
                 
                 

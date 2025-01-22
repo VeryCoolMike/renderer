@@ -535,7 +535,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) // Currently only works on the first object not any of the others, likely cause, returning at the end after making an object
 {                                                                                // causing both loop (looping through objects and vertices) to exit
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !debounce) // https://antongerdelan.net/opengl/raycasting.html
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !ImGui::GetIO().WantCaptureMouse) // https://antongerdelan.net/opengl/raycasting.html
     {
         // https://antongerdelan.net/opengl/raycasting.html
         int width, height;
@@ -579,8 +579,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
                         objects[i].selected = false;
                     }
                 }
-                
-                
             }
         }
         else

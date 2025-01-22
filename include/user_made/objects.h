@@ -11,20 +11,24 @@
 int currentIDNumber = 0;
 int currentLightID = 0;
 
-extern std::vector<float> cubeVert;
 
-struct transform
+
+struct vertices
 {
-    glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    std::vector<glm::vec3> position;
+    std::vector<glm::vec2> texCoords;
+    std::vector<glm::vec3> normal;
+    
 };
+
+extern vertices cubeVert;
+
 
 struct object
 {
     int id;
     std::string name;
-    std::vector<float> vertices;
+    vertices vertices;
     struct {
         glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -53,7 +57,7 @@ struct light // This truly is an ECS
 std::vector<object> objects;
 std::vector<light> lightArray;
 
-object add_object(int id, std::string name, std::vector<float> vertices, bool isLight)
+object add_object(int id, std::string name, vertices vertices, bool isLight)
 {
     object newObject;
     newObject.id = currentIDNumber;
@@ -320,9 +324,84 @@ int LoadFromFile(const std::string& filename) // add_object(int id, std::string 
     std::cout << "File lines: " << lineCount << std::endl;
     std::cout << "Object size: " << objectSize << std::endl;
     std::cout << "Object offset: " << objectOffset << std::endl;
+    infile.close();
     return lightCounter;
 
-    infile.close();
+    
 }
 
+vertices loadObj(const std::string& filename) // piss up
+{
+    std::ifstream infile(filename);
+    vertices emptyVertices;
+    if (!infile.is_open()) {return emptyVertices;} // peak error handling
 
+    std::string text;
+
+    vertices currentVertices;
+
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec2> texture_coords;
+    std::vector<glm::vec3> normals;
+
+    while (std::getline(infile, text))
+    {
+        std::istringstream iss(text);
+        while (iss)
+        {
+            std::string prefix;
+            iss >> prefix;
+            if (prefix == "v")
+            {
+                float x, y, z;
+                if (iss >> x >> y >> z)
+                {
+                    positions.push_back(glm::vec3(x, y, z));
+                }
+            }
+            else if (prefix == "vt")
+            {
+                float x, y;
+                if (iss >> x >> y)
+                {
+                    texture_coords.push_back(glm::vec2(x, y));
+                }
+            }
+            else if (prefix == "vn")
+            {
+                float x, y, z;
+                if (iss >> x >> y >> z)
+                {
+                    normals.push_back(glm::vec3(x, y, z));
+                }
+            }
+            else if (prefix == "f")
+            {
+                int v1, vt1, vn1;
+                int v2, vt2, vn2;
+                int v3, vt3, vn3;
+
+                char slash;
+
+                iss >> v1 >> slash >> vt1 >> slash >> vn1;
+                currentVertices.position.push_back(positions[v1 - 1]);
+                currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
+                currentVertices.normal.push_back(normals[vn1 - 1]);
+
+                iss >> v2 >> slash >> vt2 >> slash >> vn2;
+                currentVertices.position.push_back(positions[v2 - 1]);
+                currentVertices.texCoords.push_back(texture_coords[vt2 - 1]);
+                currentVertices.normal.push_back(normals[vn2 - 1]);
+                
+                iss >> v3 >> slash >> vt3 >> slash >> vn3;
+                currentVertices.position.push_back(positions[v3 - 1]);
+                currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
+                currentVertices.normal.push_back(normals[vn3 - 1]);
+            }
+        }
+    }
+
+    infile.close();
+
+    return currentVertices;
+}
