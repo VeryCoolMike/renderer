@@ -50,7 +50,7 @@ extern std::vector<object> objects;
 
 glm::vec3 movementVector = glm::vec3(0.0f, 0.0f, 0.0f);
 
-bool levelEditing;
+bool levelEditing = false;
 
 float swaySpeed = 5.0f;      // Controls sway speed
 float swayAmount = 0.00005f; // Controls sway magnitude
@@ -86,6 +86,8 @@ struct gui
 };
 
 extern std::vector<gui> guisVisible;
+
+extern vertices cubeObj;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -219,7 +221,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                 {
                     if (objects[i].selected == true)
                     {
-                        add_object(currentIDNumber, objects[i].name, cubeVert, objects[i].light);
+                        add_object(currentIDNumber, objects[i].name, cubeObj, objects[i].light);
                         objects.back().transform = objects[i].transform;
                         if (objects[i].light == true)
                         {
@@ -271,7 +273,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             targetMovementVector -= glm::normalize(glm::cross(cameraFront, cameraUp));
         }
 
-        /*
+        
         bool found_collision = false;
 
         // Collision detection
@@ -369,7 +371,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         {
             grounded = false;
         }
-        */
+        
 
         //std::cout << grounded << std::endl;
 
@@ -423,7 +425,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                 {
                     if (objects[i].selected == true)
                     {
-                        add_object(currentIDNumber, objects[i].name, cubeVert, objects[i].light);
+                        add_object(currentIDNumber, objects[i].name, cubeObj, objects[i].light);
                         objects.back().transform = objects[i].transform;
                         if (objects[i].light == true)
                         {
@@ -454,7 +456,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             {
                 if (objects[i].selected == true)
                 {
-                    add_object(currentIDNumber, objects[i].name, cubeVert, objects[i].light);
+                    add_object(currentIDNumber, objects[i].name, cubeObj, objects[i].light);
                     objects.back().transform = objects[i].transform;
                     if (objects[i].light == true)
                     {

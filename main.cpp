@@ -28,7 +28,6 @@
 #include <assimp/postprocess.h>
 
 #include "include/user_made/objects.h"
-#include "include/user_made/vertices.h"
 #include "include/user_made/input_handling.h"
 #include "include/user_made/shader.h"
 #include "include/user_made/textures.h"
@@ -73,6 +72,13 @@ glm::mat4 view;
 glm::mat4 model;
 
 std::vector<gui> guisVisible;
+
+// Loading files
+vertices coneObj = loadObj("resources/models/cone.obj");
+vertices dbShotgun = loadObj("resources/models/dbShotgun.obj");
+vertices skull = loadObj("resources/models/skull.obj");
+vertices bmw = loadObj("resources/models/bmw.obj");
+vertices cubeObj = loadObj("resources/models/cube.obj");
 
 int main(void)
 
@@ -176,11 +182,7 @@ int main(void)
         std::cout << textureArray[i] << std::endl;
     }
 
-    // Loading files
-    vertices cone_obj = loadObj("resources/models/cone.obj");
-    vertices dbShotgun = loadObj("resources/models/dbShotgun.obj");
-    vertices skull = loadObj("resources/models/skull.obj");
-    vertices bmw = loadObj("resources/models/bmw.obj");
+
 
     /*
      ██████  ██    ██ ██
@@ -231,7 +233,7 @@ int main(void)
     glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-    add_object(currentIDNumber, "floor", cubeVert, false);
+    add_object(currentIDNumber, "floor", cubeObj, false);
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
@@ -468,17 +470,16 @@ int main(void)
 
             if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
             {
-                add_object(currentIDNumber, "box", cubeVert, false);
+                add_object(currentIDNumber, "box", cubeObj, false);
                 objects[currentIDNumber-1].texture = 0;
             }
 
             if (ImGui::Button("Make Light"))
             {
-                add_object(currentIDNumber, "light", cubeVert, true);
+                add_object(currentIDNumber, "light", cubeObj, true);
                 int counter = 0;
                 for (int i = 0 ; i < currentIDNumber; i++)
                 {
-                    //if (objects[i].enabled == false) {continue;} I don't know why I had to comment this, but if I don't everything breaks.
                     const auto& obj = objects[i];
                     if (obj.light == true)
                     {
@@ -529,8 +530,6 @@ int main(void)
                         }
                     }
                 }
-                //ImGui::NewLine();
-                
                 
                 
                 ImGui::PopID(); // Pop the ID after the widget
@@ -588,6 +587,23 @@ int main(void)
                         {
                             // Remove the object at index n
                             remove_object(n);
+                        }
+
+                        if (ImGui::Button("cube"))
+                        {
+                            updateVertices(cubeObj, objects[n]);
+                        }
+                        if (ImGui::Button("skull"))
+                        {
+                            updateVertices(skull, objects[n]);
+                        }
+                        if (ImGui::Button("gun"))
+                        {
+                            updateVertices(dbShotgun, objects[n]);
+                        }
+                        if (ImGui::Button("bmw"))
+                        {
+                            updateVertices(bmw, objects[n]);
                         }
                         
                         ImGui::End();  // End the ImGui window

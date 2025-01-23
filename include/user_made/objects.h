@@ -10,6 +10,7 @@
 
 int currentIDNumber = 0;
 int currentLightID = 0;
+int currentObjID = 0;
 
 
 
@@ -18,10 +19,9 @@ struct vertices
     std::vector<glm::vec3> position;
     std::vector<glm::vec2> texCoords;
     std::vector<glm::vec3> normal;
-    
+    std::string id;
 };
 
-extern vertices cubeVert;
 
 
 struct object
@@ -99,10 +99,8 @@ object add_object(int id, std::string name, vertices vertices, bool isLight)
         newObject.temp_data.push_back(vertices.normal[v][2]);
     }
 
-    // Now upload the data to the buffer (assuming each object has its own VBO)
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);  // Use the object's VBO
+
     glBufferData(GL_ARRAY_BUFFER, newObject.temp_data.size() * sizeof(float), newObject.temp_data.data(), GL_STATIC_DRAW);
-    std::cout << "Temp data size: " << newObject.temp_data.size() << std::endl;
     int vertexsize = 8; // I hate doing this manually
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)0);
@@ -176,6 +174,7 @@ void SaveToFile(const std::string& filename)
         outfile << obj.transform.pos.x << "\n" << obj.transform.pos.y << "\n" << obj.transform.pos.z << "\n"; // Position things! >:3
         outfile << obj.transform.rot.x << "\n" << obj.transform.rot.y << "\n" << obj.transform.rot.z << "\n"; // rotation, basically useless, until it isn't
         outfile << obj.transform.scale.x << "\n" << obj.transform.scale.y << "\n" << obj.transform.scale.z << "\n"; // scales :(
+        outfile << obj.vertices.id << "\n";
         // 1. ID
         // 2. Name
         // 3. IsLight
@@ -192,10 +191,126 @@ void SaveToFile(const std::string& filename)
         // 14. ScaleX
         // 15. ScaleY
         // 16. ScaleZ
+        // 17. Object ID
     }
     
     outfile.close();
 }
+
+vertices loadObj(const std::string& filename) // piss up
+{
+    std::ifstream infile(filename);
+    vertices emptyVertices;
+    if (!infile.is_open())
+    {
+        std::cout << "ERROR! Object trying to load: " << filename << " does not exist!" << std::endl;
+        return emptyVertices;
+    }
+
+    std::string text;
+
+    vertices currentVertices;
+
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec2> texture_coords;
+    std::vector<glm::vec3> normals;
+
+    int count = 0;
+    bool counted = false;
+
+    while (std::getline(infile, text))
+    {
+        std::istringstream iss(text);
+        while (iss)
+        {
+            std::string prefix;
+            iss >> prefix;
+            if (prefix == "v")
+            {
+                float x, y, z;
+                if (iss >> x >> y >> z)
+                {
+                    positions.push_back(glm::vec3(x, y, z));
+                }
+                count += 1;
+            }
+            else if (prefix == "vt")
+            {
+                float x, y;
+                if (iss >> x >> y)
+                {
+                    texture_coords.push_back(glm::vec2(x, y));
+                }
+            }
+            else if (prefix == "vn")
+            {
+                float x, y, z;
+                if (iss >> x >> y >> z)
+                {
+                    normals.push_back(glm::vec3(x, y, z));
+                }
+            }
+            else if (prefix == "f")
+            {
+                int v1, vt1, vn1;
+                int v2, vt2, vn2;
+                int v3, vt3, vn3;
+                int v4, vt4, vn4;
+
+                char slash;
+
+                iss >> v1 >> slash >> vt1 >> slash >> vn1;
+                currentVertices.position.push_back(positions[v1 - 1]);
+                currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
+                currentVertices.normal.push_back(normals[vn1 - 1]);
+
+                iss >> v2 >> slash >> vt2 >> slash >> vn2;
+                currentVertices.position.push_back(positions[v2 - 1]);
+                currentVertices.texCoords.push_back(texture_coords[vt2 - 1]);
+                currentVertices.normal.push_back(normals[vn2 - 1]);
+                
+                iss >> v3 >> slash >> vt3 >> slash >> vn3;
+                currentVertices.position.push_back(positions[v3 - 1]);
+                currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
+                currentVertices.normal.push_back(normals[vn3 - 1]);
+
+                if (iss >> v4 >> slash >> vt4 >> slash >> vn4) // Incase of quad
+                {
+                    if (counted == false)
+                    {
+                        
+                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
+
+                        iss >> v1 >> slash >> vt1 >> slash >> vn1;
+                        currentVertices.position.push_back(positions[v1 - 1]);
+                        currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
+                        currentVertices.normal.push_back(normals[vn1 - 1]);
+
+                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
+                        currentVertices.position.push_back(positions[v4 - 1]);
+                        currentVertices.texCoords.push_back(texture_coords[vt4 - 1]);
+                        currentVertices.normal.push_back(normals[vn4 - 1]);
+                        
+                        iss >> v3 >> slash >> vt3 >> slash >> vn3;
+                        currentVertices.position.push_back(positions[v3 - 1]);
+                        currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
+                        currentVertices.normal.push_back(normals[vn3 - 1]);
+
+                    }
+                }
+            }
+
+        }
+    }
+
+    infile.close();
+
+    currentVertices.id = filename;
+    std::cout << currentVertices.id << std::endl;
+
+    return currentVertices;
+}
+
 
 // 0 is BAD Run this it's broken
 int LoadFromFile(const std::string& filename) // add_object(int id, std::string name, std::vector<float> vertices, bool isLight, unsigned int shader)
@@ -208,7 +323,7 @@ int LoadFromFile(const std::string& filename) // add_object(int id, std::string 
     int currentIDLine;
     int lineCount = 0;
 
-    const int objectSize = 16;
+    const int objectSize = 17;
     const int objectOffset = 0;
 
     int lightCounter = 0;
@@ -326,45 +441,68 @@ int LoadFromFile(const std::string& filename) // add_object(int id, std::string 
         }
         else if ((lineCount + objectOffset) % objectSize == 13) // Line 13 - RotZ
         {
-            try {
+            try
+            {
                 tempTransformRot.z = std::stof(text);
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception& e)
+            {
                 std::cerr << "Error converting RotZ value to float: " << e.what() << std::endl;
             }
         }
         else if ((lineCount + objectOffset) % objectSize == 14) // Line 14 - ScaleX
         {
-            try {
+            try
+            {
                 tempTransformScale.x = std::stof(text);
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception& e)
+            {
                 std::cerr << "Error converting ScaleX value to float: " << e.what() << std::endl;
             }
         }
         else if ((lineCount + objectOffset) % objectSize == 15) // Line 15 - ScaleY
         {
-            try {
+            try
+            {
                 tempTransformScale.y = std::stof(text);
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception& e)
+            {
                 std::cerr << "Error converting ScaleY value to float: " << e.what() << std::endl;
             }
         }
-        else if ((lineCount + objectOffset) % objectSize == 0) // Line 16 - ScaleZ
+        else if ((lineCount + objectOffset) % objectSize == 16) // Line 16 - ScaleZ
         {
-            try {
+            try
+            {
                 tempTransformScale.z = std::stof(text.c_str());
-                add_object(tempID, tempName, cubeVert, tempIsLight);
+                
+            } catch (const std::exception& e) {
+                std::cerr << "Error converting ScaleZ value to float: " << e.what() << std::endl;
+            }
+        }
+        else if ((lineCount + objectOffset) % objectSize == 0) // Line 17 - Object ID
+        {
+            try
+            {   
+                vertices loadedVertices = loadObj(text.c_str());
+                add_object(tempID, tempName, loadedVertices, tempIsLight);
                 objects.back().transform.pos = tempTransformPos;
                 objects.back().transform.scale = tempTransformScale;
                 objects.back().transform.rot = tempTransformRot;
                 objects.back().texture = tempTexture;
-                
+
                 if (objects.back().light == true) // This can't be applied to everything or else lights break for some reason???
                 {
                     objects.back().objectColor = tempLightColor;
                 }
-            } catch (const std::exception& e) {
-                std::cerr << "Error converting ScaleZ value to float: " << e.what() << std::endl;
             }
+            catch(const std::exception& e)
+            {
+                std::cerr << "Error getting object to load: " << e.what() << std::endl;
+            }
+            
         }
 
     }
@@ -378,113 +516,36 @@ int LoadFromFile(const std::string& filename) // add_object(int id, std::string 
     
 }
 
-vertices loadObj(const std::string& filename) // piss up
+void updateVertices(vertices new_vertices, object object_used) // Future use for animations
 {
-    std::ifstream infile(filename);
-    vertices emptyVertices;
-    if (!infile.is_open()) {return emptyVertices;} // peak error handling
-
-    std::string text;
-
-    vertices currentVertices;
-
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec2> texture_coords;
-    std::vector<glm::vec3> normals;
-
-    int count = 0;
-    bool counted = false;
-
-    while (std::getline(infile, text))
+    std::vector<float> temp_data = {};
+    for (int v = 0; v < new_vertices.position.size(); v++) // Load the three lists into one for OpenGL
     {
-        std::istringstream iss(text);
-        while (iss)
+        // Positions
+        temp_data.push_back(new_vertices.position[v].x);
+        temp_data.push_back(new_vertices.position[v].y);
+        temp_data.push_back(new_vertices.position[v].z);
+        
+        // Texture Coordinates
+        temp_data.push_back(new_vertices.texCoords[v][0]);
+        temp_data.push_back(new_vertices.texCoords[v][1]);
+
+        // Normals
+        temp_data.push_back(new_vertices.normal[v][0]);
+        temp_data.push_back(new_vertices.normal[v][1]);
+        temp_data.push_back(new_vertices.normal[v][2]);
+    }
+
+    for (int i = 0; i < objects.size(); i++)
+    {
+        if (objects[i].id == object_used.id)
         {
-            std::string prefix;
-            iss >> prefix;
-            if (prefix == "v")
-            {
-                float x, y, z;
-                if (iss >> x >> y >> z)
-                {
-                    positions.push_back(glm::vec3(x, y, z));
-                }
-                count += 1;
-            }
-            else if (prefix == "vt")
-            {
-                float x, y;
-                if (iss >> x >> y)
-                {
-                    texture_coords.push_back(glm::vec2(x, y));
-                }
-            }
-            else if (prefix == "vn")
-            {
-                float x, y, z;
-                if (iss >> x >> y >> z)
-                {
-                    normals.push_back(glm::vec3(x, y, z));
-                }
-            }
-            else if (prefix == "f")
-            {
-                int v1, vt1, vn1;
-                int v2, vt2, vn2;
-                int v3, vt3, vn3;
-                int v4, vt4, vn4;
-
-                char slash;
-
-                iss >> v1 >> slash >> vt1 >> slash >> vn1;
-                currentVertices.position.push_back(positions[v1 - 1]);
-                currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
-                currentVertices.normal.push_back(normals[vn1 - 1]);
-
-                iss >> v2 >> slash >> vt2 >> slash >> vn2;
-                currentVertices.position.push_back(positions[v2 - 1]);
-                currentVertices.texCoords.push_back(texture_coords[vt2 - 1]);
-                currentVertices.normal.push_back(normals[vn2 - 1]);
-                
-                iss >> v3 >> slash >> vt3 >> slash >> vn3;
-                currentVertices.position.push_back(positions[v3 - 1]);
-                currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
-                currentVertices.normal.push_back(normals[vn3 - 1]);
-
-                if (iss >> v4 >> slash >> vt4 >> slash >> vn4)
-                {
-                    if (counted == false)
-                    {
-                        
-                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
-
-                        iss >> v1 >> slash >> vt1 >> slash >> vn1;
-                        currentVertices.position.push_back(positions[v1 - 1]);
-                        currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
-                        currentVertices.normal.push_back(normals[vn1 - 1]);
-
-                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
-                        currentVertices.position.push_back(positions[v4 - 1]);
-                        currentVertices.texCoords.push_back(texture_coords[vt4 - 1]);
-                        currentVertices.normal.push_back(normals[vn4 - 1]);
-                        
-                        iss >> v3 >> slash >> vt3 >> slash >> vn3;
-                        currentVertices.position.push_back(positions[v3 - 1]);
-                        currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
-                        currentVertices.normal.push_back(normals[vn3 - 1]);
-
-                    }
-                }
-            }
-
+            objects[i].vertices.id = new_vertices.id;
         }
     }
 
-    infile.close();
 
-    std::cout << "Amount of vertices: " << currentVertices.position.size() / sizeof(glm::vec3) << std::endl;
-    
-    std::cout << "Count: " << count << std::endl;
+    glBindBuffer(GL_ARRAY_BUFFER, object_used.VBO);
+    glBufferData(GL_ARRAY_BUFFER, temp_data.size() * sizeof(float), temp_data.data(), GL_STATIC_DRAW);
 
-    return currentVertices;
 }

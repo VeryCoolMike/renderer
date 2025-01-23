@@ -8,7 +8,7 @@ struct ray_cast
 
 const float EPSILON = 0.000001f;
 
-ray_cast raycast(glm::vec3 origin, glm::vec3 direction){
+ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how this works but it does
     float closest_intersection = std::numeric_limits<float>::max(); // Largest possible number (Technical limit)
     bool found_intersection = false;
     object intersection_object;
@@ -38,7 +38,6 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){
 
             if (dot_product > -EPSILON && dot_product < EPSILON)
             {
-                //std::cout << "1" << std::endl;
                 continue;
             }
 
@@ -50,7 +49,6 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){
             
             if (dot_product2 < 0 || dot_product2 > 1) // Outside of triangle
             {
-                //std::cout << "2" << std::endl;
                 continue;
             }
 
@@ -60,7 +58,6 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){
 
             if (dot_product3 < 0.0f || dot_product2 + dot_product3 > 1.0f)
             {
-                //std::cout << "3" << std::endl;
                 continue;
             }
 
