@@ -271,6 +271,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             targetMovementVector -= glm::normalize(glm::cross(cameraFront, cameraUp));
         }
 
+        /*
         bool found_collision = false;
 
         // Collision detection
@@ -368,6 +369,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         {
             grounded = false;
         }
+        */
 
         //std::cout << grounded << std::endl;
 

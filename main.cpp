@@ -128,38 +128,7 @@ int main(void)
 
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
-    int vertexsize = 8; // I hate doing this manually
-
-    // For your main object
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBindVertexArray(VAO);
-
-    // Your existing vertex attribute setup for main object
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)(5 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    // Light cube VAO setup
-    unsigned int lightVAO;
-    glGenVertexArrays(1, &lightVAO);
-    glBindVertexArray(lightVAO);
-
-    // Bind the same VBO since we're using the same vertex data
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-    // Configure the light's vertex attributes - note the stride matches your vertex format
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
+    
     /*
     ███████ ███████ ████████ ██    ██ ██████  
     ██      ██         ██    ██    ██ ██   ██ 
@@ -209,9 +178,9 @@ int main(void)
 
     // Loading files
     vertices cone_obj = loadObj("resources/models/cone.obj");
-    std::cout << cone_obj.position[0].x << std::endl;
-    std::cout << cone_obj.position[0].y << std::endl;
-    std::cout << cone_obj.position[0].z << std::endl;
+    vertices dbShotgun = loadObj("resources/models/dbShotgun.obj");
+    vertices skull = loadObj("resources/models/skull.obj");
+    vertices bmw = loadObj("resources/models/bmw.obj");
 
     /*
      ██████  ██    ██ ██
@@ -266,7 +235,7 @@ int main(void)
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
-    add_object(currentIDNumber, "box", cone_obj, false);
+    add_object(currentIDNumber, "bmw", bmw, false);
     
 
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
@@ -289,6 +258,7 @@ int main(void)
         }
     }
     regularShader.setInt("lightAmount", counter); // Avoiding running expensive operations every frame
+
 
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
@@ -349,29 +319,11 @@ int main(void)
         }
 
 
-        for (unsigned int i = 0; i < currentIDNumber; i++)
+        for (unsigned int i = 0; i < objects.size(); i++)
         {
             if (objects[i].enabled == false) {continue;}
             const auto& obj = objects[i];
-            std::vector<float> temp_data = {};
-            for (int i = 0; i < obj.vertices.position.size(); i++) // This is so SO stupid
-            {
-                // Positions
-                temp_data.push_back(obj.vertices.position[i].x);
-                temp_data.push_back(obj.vertices.position[i].y);
-                temp_data.push_back(obj.vertices.position[i].z);
-                
-                // Texture Coordinates
-                temp_data.push_back(obj.vertices.texCoords[i][0]);
-                temp_data.push_back(obj.vertices.texCoords[i][1]);
-
-                // Normals
-                temp_data.push_back(obj.vertices.normal[i][0]);
-                temp_data.push_back(obj.vertices.normal[i][1]);
-                temp_data.push_back(obj.vertices.normal[i][2]);
-            }
-            glBufferData(GL_ARRAY_BUFFER, temp_data.size() * sizeof(float), temp_data.data(), GL_DYNAMIC_DRAW);
-
+            
 
             if (obj.light)
             {
@@ -387,7 +339,6 @@ int main(void)
                 lightShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
                 lightShader.setInt("currentTexture", obj.texture);
                 
-                glBindVertexArray(lightVAO);
             }
             else
             {
@@ -407,8 +358,10 @@ int main(void)
                 regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
                 regularShader.setBool("fullBright", fullBright);
                 regularShader.setFloat("ambientStrength", ambientintensity);  // Adjust this value as needed
-                glBindVertexArray(VAO);
+
             }
+
+            glBindVertexArray(objects[i].VAO);
 
             // Transformations
             glm::mat4 model = glm::mat4(1.0f);
@@ -427,26 +380,21 @@ int main(void)
             {
                 glUniformMatrix4fv(glGetUniformLocation(regularShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
             }
-            
 
-            glDrawArrays(GL_TRIANGLES, 0, temp_data.size());
-            
+            glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
         }
 
         // Needs to be here for some reason or light vertex shader will stop working?????
         lightShader.use();
         
         
-        glBindVertexArray(lightVAO); // Use the light VAO
-
-        glm::mat4 model = glm::mat4(1.0f);
+        //glm::mat4 model = glm::mat4(1.0f);
 
         lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
         lightShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
         lightShader.use();
-        glBindVertexArray(lightVAO); // Use the light VAO
 
         regularShader.use();
 
@@ -682,9 +630,11 @@ int main(void)
     printf("Exiting\n");
 
     glfwTerminate(); // Clean things up!
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteVertexArrays(1, &lightVAO);
-    glDeleteBuffers(1, &VBO);
+    for (int i = 0; i < objects.size(); i++)
+    {
+        glDeleteVertexArrays(1, &objects[i].VAO);
+        glDeleteBuffers(1, &objects[i].VBO);
+    }
     for (int i = 0; i < fileCount; i++)
     {
         glDeleteTextures(1, &textureArray[i]);

@@ -41,6 +41,9 @@ struct object
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
     bool selected = false;
     bool canCollide = true;
+    std::vector<float> temp_data;
+    unsigned int VAO;
+    unsigned int VBO;
 };
 
 
@@ -67,7 +70,52 @@ object add_object(int id, std::string name, vertices vertices, bool isLight)
     newObject.transform.pos = glm::vec3(0.0f, 0.0f, 0.0f);
     newObject.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
     newObject.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    unsigned int VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     
+    
+    newObject.VAO = VAO;
+    newObject.VBO = VBO;
+
+    for (int v = 0; v < vertices.position.size(); v++)  // Use `newObject` here, not `objects[v]`
+    {
+        // Positions
+        newObject.temp_data.push_back(vertices.position[v].x);
+        newObject.temp_data.push_back(vertices.position[v].y);
+        newObject.temp_data.push_back(vertices.position[v].z);
+        
+        // Texture Coordinates
+        newObject.temp_data.push_back(vertices.texCoords[v][0]);
+        newObject.temp_data.push_back(vertices.texCoords[v][1]);
+
+        // Normals
+        newObject.temp_data.push_back(vertices.normal[v][0]);
+        newObject.temp_data.push_back(vertices.normal[v][1]);
+        newObject.temp_data.push_back(vertices.normal[v][2]);
+    }
+
+    // Now upload the data to the buffer (assuming each object has its own VBO)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);  // Use the object's VBO
+    glBufferData(GL_ARRAY_BUFFER, newObject.temp_data.size() * sizeof(float), newObject.temp_data.data(), GL_STATIC_DRAW);
+    std::cout << "Temp data size: " << newObject.temp_data.size() << std::endl;
+    int vertexsize = 8; // I hate doing this manually
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexsize * sizeof(float), (void *)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+
 
     struct light newLight;
     newLight.pos = newObject.transform.pos;
@@ -344,6 +392,9 @@ vertices loadObj(const std::string& filename) // piss up
     std::vector<glm::vec2> texture_coords;
     std::vector<glm::vec3> normals;
 
+    int count = 0;
+    bool counted = false;
+
     while (std::getline(infile, text))
     {
         std::istringstream iss(text);
@@ -358,6 +409,7 @@ vertices loadObj(const std::string& filename) // piss up
                 {
                     positions.push_back(glm::vec3(x, y, z));
                 }
+                count += 1;
             }
             else if (prefix == "vt")
             {
@@ -380,6 +432,7 @@ vertices loadObj(const std::string& filename) // piss up
                 int v1, vt1, vn1;
                 int v2, vt2, vn2;
                 int v3, vt3, vn3;
+                int v4, vt4, vn4;
 
                 char slash;
 
@@ -397,11 +450,41 @@ vertices loadObj(const std::string& filename) // piss up
                 currentVertices.position.push_back(positions[v3 - 1]);
                 currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
                 currentVertices.normal.push_back(normals[vn3 - 1]);
+
+                if (iss >> v4 >> slash >> vt4 >> slash >> vn4)
+                {
+                    if (counted == false)
+                    {
+                        
+                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
+
+                        iss >> v1 >> slash >> vt1 >> slash >> vn1;
+                        currentVertices.position.push_back(positions[v1 - 1]);
+                        currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
+                        currentVertices.normal.push_back(normals[vn1 - 1]);
+
+                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
+                        currentVertices.position.push_back(positions[v4 - 1]);
+                        currentVertices.texCoords.push_back(texture_coords[vt4 - 1]);
+                        currentVertices.normal.push_back(normals[vn4 - 1]);
+                        
+                        iss >> v3 >> slash >> vt3 >> slash >> vn3;
+                        currentVertices.position.push_back(positions[v3 - 1]);
+                        currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
+                        currentVertices.normal.push_back(normals[vn3 - 1]);
+
+                    }
+                }
             }
+
         }
     }
 
     infile.close();
+
+    std::cout << "Amount of vertices: " << currentVertices.position.size() / sizeof(glm::vec3) << std::endl;
+    
+    std::cout << "Count: " << count << std::endl;
 
     return currentVertices;
 }
