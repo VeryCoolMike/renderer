@@ -75,7 +75,7 @@ std::vector<gui> guisVisible;
 
 // Loading files
 vertices coneObj = loadObj("resources/models/cone.obj");
-vertices dbShotgun = loadObj("resources/models/dbShotgun.obj");
+vertices dbShotgun = loadObj("resources/models/PumpActionShotgun.obj");
 vertices skull = loadObj("resources/models/skull.obj");
 vertices bmw = loadObj("resources/models/bmw.obj");
 vertices cubeObj = loadObj("resources/models/cube.obj");
