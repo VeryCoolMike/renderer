@@ -21,7 +21,7 @@ bmw
 1
 1
 1
-5
+0
 0
 0
 0
@@ -31,7 +31,7 @@ bmw
 1
 1
 1
-resources/models/PumpActionShotgun.obj
+resources/models/skull.obj
 2
 light
 1

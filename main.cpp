@@ -18,7 +18,6 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
-
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -28,7 +27,7 @@
 #include <assimp/postprocess.h>
 
 #include "include/user_made/objects.h"
-#include "include/user_made/input_handling.h"
+#include "include/user_made/inputHandling.h"
 #include "include/user_made/shader.h"
 #include "include/user_made/textures.h"
 
@@ -39,7 +38,6 @@ uint32_t getTick();
 float calculateFrameRate();
 
 void error(const char *string);
-
 
 float rotation = 0.0f;
 float size = 1.0f;
@@ -63,7 +61,6 @@ bool rainbowMode = false;
 float lastFPS = 0.0f;
 
 GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
- 
 
 float currentFrame;
 
@@ -73,16 +70,17 @@ glm::mat4 model;
 
 std::vector<gui> guisVisible;
 
+
 // Loading files
 vertices coneObj = loadObj("resources/models/cone.obj");
-vertices dbShotgun = loadObj("resources/models/PumpActionShotgun.obj");
+vertices dbShotgun = loadObj("resources/models/shotgun.obj");
 vertices skull = loadObj("resources/models/skull.obj");
 vertices bmw = loadObj("resources/models/bmw.obj");
 vertices cubeObj = loadObj("resources/models/cube.obj");
 
-int main(void)
+player playerInstance;
 
-// Latest: Collision and playing the game
+int main(void)
 {
     std::vector<GLuint> textureArray;
 
@@ -115,6 +113,9 @@ int main(void)
         return -1;
     }
 
+    createWeapon(dbShotgun, "Shotgun", 8);
+
+
     /*
     ███████ ██   ██  █████  ██████  ███████ ██████  ███████
     ██      ██   ██ ██   ██ ██   ██ ██      ██   ██ ██
@@ -128,19 +129,17 @@ int main(void)
 
     regularShader.use();
 
-
     regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
     regularShader.setFloat("ambientStrength", ambientintensity);
 
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
-    
     /*
-    ███████ ███████ ████████ ██    ██ ██████  
-    ██      ██         ██    ██    ██ ██   ██ 
-    ███████ █████      ██    ██    ██ ██████  
-         ██ ██         ██    ██    ██ ██      
-    ███████ ███████    ██     ██████  ██      
+    ███████ ███████ ████████ ██    ██ ██████
+    ██      ██         ██    ██    ██ ██   ██
+    ███████ █████      ██    ██    ██ ██████
+         ██ ██         ██    ██    ██ ██
+    ███████ ███████    ██     ██████  ██
     */
 
     glfwSwapInterval(0); // Set to 0 to turn off v-sync (You should keep this on)
@@ -161,28 +160,21 @@ int main(void)
     }
 
     // Textures
-    // https://learnopengl.com/Getting-started/Textures Documentation about textures   
+    // https://learnopengl.com/Getting-started/Textures Documentation about textures
     // I thought I could only have 32 textures??? Nope, unlimited??? How does this work, I don't know I thought the max for GL_TEXTURE[?] was 32. Wacky!
     int fileCount = 0;
     for (auto i : std::filesystem::directory_iterator("resources/textures"))
     {
         if (std::filesystem::is_regular_file(i))
         {
-            std::cout << i << std::endl;
             textureArray.push_back(loadTexture(i.path().string().c_str()));
-            glActiveTexture(GL_TEXTURE0 + fileCount+1);
+            std::cout << i << " - " << textureArray.size() << std::endl;
+            glActiveTexture(GL_TEXTURE0 + fileCount + 1);
             glBindTexture(GL_TEXTURE_2D, textureArray[fileCount]);
             fileCount++;
         }
     }
-    printf("%i textures found!\n",fileCount);
-
-    for (int i = 0; i < fileCount; i++)
-    {
-        std::cout << textureArray[i] << std::endl;
-    }
-
-
+    printf("%i textures found!\n", fileCount);
 
     /*
      ██████  ██    ██ ██
@@ -206,7 +198,6 @@ int main(void)
     ImGui_ImplOpenGL3_Init("#version 330");
     io.FontGlobalScale = 2.0f;
     io.IniFilename = nullptr;
-    
 
     // Restore main window context
     glfwMakeContextCurrent(window);
@@ -238,11 +229,13 @@ int main(void)
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
     add_object(currentIDNumber, "bmw", bmw, false);
-    
 
     for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
     {
-        if (objects[n].enabled == false) {continue;}
+        if (objects[n].enabled == false)
+        {
+            continue;
+        }
         gui newGui;
         newGui.id = n;
         newGui.visible = false;
@@ -250,17 +243,19 @@ int main(void)
     }
 
     int counter = 0;
-    for (int i = 0 ; i < currentIDNumber; i++)
+    for (int i = 0; i < currentIDNumber; i++)
     {
-        if (objects[i].enabled == false) {continue;}
-        const auto& obj = objects[i];
+        if (objects[i].enabled == false)
+        {
+            continue;
+        }
+        const auto &obj = objects[i];
         if (obj.light == true)
         {
             counter += 1;
         }
     }
     regularShader.setInt("lightAmount", counter); // Avoiding running expensive operations every frame
-
 
     while (!glfwWindowShouldClose(window)) // Make the window not immediately close
     {
@@ -386,26 +381,59 @@ int main(void)
             glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
         }
 
+        // Draw viewmodel
+
+        // Disable despth testing causes strange issues
+        regularShader.use();
+        // Assuming that the weapon exists, add error checking!
+
+
+        int currentWeapon = playerInstance.weaponID;
+
+
+        regularShader.setInt("currentTexture", weapons[currentWeapon].texture);
+
+        regularShader.setBool("selected", false);
+        regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+        regularShader.setFloat3("objectColor", weapons[currentWeapon].objectColor[0], weapons[currentWeapon].objectColor[1], weapons[currentWeapon].objectColor[2]);
+        regularShader.setBool("fullBright", fullBright);
+        regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
+
+        glBindVertexArray(weapons[currentWeapon].VAO);
+
+        // Transformations
+        weapons[currentWeapon].transform.pos = cameraPos + weapons[currentWeapon].offset.pos;
+        weapons[currentWeapon].transform.rot.y = -yaw;
+        weapons[currentWeapon].transform.rot.z = pitch;
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, cameraPos); // Make it go to camerapos
+        model = glm::scale(model, glm::vec3(weapons[currentWeapon].transform.scale));
+        glm::vec3 angle = weapons[currentWeapon].transform.rot;
+        model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::translate(model, weapons[currentWeapon].offset.pos);
+
+        glUniformMatrix4fv(glGetUniformLocation(regularShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+        glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
+
         // Needs to be here for some reason or light vertex shader will stop working?????
         lightShader.use();
-        
-        
-        //glm::mat4 model = glm::mat4(1.0f);
 
         lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
         lightShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-        lightShader.use();
 
         regularShader.use();
-
 
         // Update things
         glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
         regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
         regularShader.setFloat("ambientStrength", ambientintensity);
+
 
         if (rainbowMode)
         {
@@ -417,8 +445,6 @@ int main(void)
             backgroundColor[1] = (sin(currentFrame + 2.0944) * 0.5 + 0.5); // Green (0.0 to 1.0)
             backgroundColor[0] = (sin(currentFrame + 4.1888) * 0.5 + 0.5); // Blue (0.0 to 1.0)
         }
-
-        
 
         // !-X-X-X-X-X-! GUI !-X-X-X-X-X-!
         if (gui_visible)
@@ -448,39 +474,43 @@ int main(void)
 
             ImGui::InputText("Map file", mapFileName, sizeof(mapFileName));
 
-            if (ImGui::Button("Save")) {
+            if (ImGui::Button("Save"))
+            {
                 SaveToFile(mapFileName); // Save to MapFile1.txt
             }
 
-            if (ImGui::Button("Load")) {
+            if (ImGui::Button("Load"))
+            {
                 guisVisible.clear();
                 objects.clear();
                 regularShader.setInt("lightAmount", LoadFromFile(mapFileName)); // Load from MapFile1.txt
-                
+
                 for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
                 {
-                    if (objects[n].enabled == false) {continue;}
+                    if (objects[n].enabled == false)
+                    {
+                        continue;
+                    }
                     gui newGui;
                     newGui.id = n;
                     newGui.visible = false;
                     guisVisible.push_back(newGui);
                 }
-                
             }
 
             if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
             {
                 add_object(currentIDNumber, "box", cubeObj, false);
-                objects[currentIDNumber-1].texture = 0;
+                objects[currentIDNumber - 1].texture = 0;
             }
 
             if (ImGui::Button("Make Light"))
             {
                 add_object(currentIDNumber, "light", cubeObj, true);
                 int counter = 0;
-                for (int i = 0 ; i < currentIDNumber; i++)
+                for (int i = 0; i < currentIDNumber; i++)
                 {
-                    const auto& obj = objects[i];
+                    const auto &obj = objects[i];
                     if (obj.light == true)
                     {
                         counter += 1;
@@ -494,7 +524,6 @@ int main(void)
             ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
             ImGui::ColorPicker4("Background Color", backgroundColor);
 
-
             ImGui::Checkbox("Rainbow mode!!!", &rainbowMode);
 
             ImGui::NewLine();
@@ -503,10 +532,13 @@ int main(void)
 
             for (int n = 0; n < objects.size(); ++n)
             {
-                if (objects[n].enabled == false) {continue;}
+                if (objects[n].enabled == false)
+                {
+                    continue;
+                }
                 ImGui::PushID(n); // Push the index as the unique ID
                 std::string text = objects[n].name + std::to_string(n);
-                
+
                 if (ImGui::Button(text.c_str()))
                 {
                     {
@@ -530,8 +562,7 @@ int main(void)
                         }
                     }
                 }
-                
-                
+
                 ImGui::PopID(); // Pop the ID after the widget
 
                 for (int i = 0; i < objects.size(); i++)
@@ -557,11 +588,11 @@ int main(void)
                 {
                     if (guisVisible[n].visible)
                     {
-                        ImGui::Begin(objects[n].name.c_str());  // Start the ImGui window
+                        ImGui::Begin(objects[n].name.c_str()); // Start the ImGui window
                         for (int i = 0; i < fileCount; i++)
                         {
                             ImGui::PushID(i);
-                            if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0,0)))  // 0 for no padding
+                            if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0, 0))) // 0 for no padding
                             {
                                 objects[n].texture = i;
                             }
@@ -574,7 +605,6 @@ int main(void)
                                 ImGui::NewLine();
                             }
 
-                            
                             ImGui::PopID();
                         }
                         ImGui::NewLine();
@@ -605,20 +635,17 @@ int main(void)
                         {
                             updateVertices(bmw, objects[n]);
                         }
-                        
-                        ImGui::End();  // End the ImGui window
+
+                        ImGui::End(); // End the ImGui window
                     }
                 }
-                catch(const std::exception& e)
+                catch (const std::exception &e)
                 {
                     std::cerr << "Error: " << e.what() << '\n';
                 }
-                
             }
-    
 
             ImGui::End();
-
 
             ImGui::Render();
             int display_w, display_h;
@@ -631,7 +658,6 @@ int main(void)
             for (int i = 0; i < guisVisible.size(); i++)
             {
                 guisVisible[i].visible = false;
-                
             }
             for (int v = 0; v < objects.size(); v++)
             {
