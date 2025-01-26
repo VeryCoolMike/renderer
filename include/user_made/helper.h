@@ -1,3 +1,7 @@
+#ifndef HELPER_H
+#define HELPER_H
+
+#include "structs.h"
 
 struct ray_cast
 {
@@ -6,9 +10,12 @@ struct ray_cast
     bool valid;
 };
 
+// Extern variables
+
 const float EPSILON = 0.000001f;
 
-ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how this works but it does
+ray_cast raycast(glm::vec3 origin, glm::vec3 direction)
+{                                                                   // I don't know how this works but it does
     float closest_intersection = std::numeric_limits<float>::max(); // Largest possible number (Technical limit)
     bool found_intersection = false;
     object intersection_object;
@@ -16,7 +23,7 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how thi
     for (int i = 0; i < objects.size(); i++) // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
     {
         if (objects[i].name == "test")
-        { 
+        {
             continue;
         }
         for (int v = 0; v < objects[i].vertices.position.size(); v += 3) // 8 is the vertex size but we need a vertice so 3 vertexes (8*3)
@@ -25,9 +32,9 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how thi
             model = glm::translate(model, objects[i].transform.pos);
             model = glm::scale(model, glm::vec3(objects[i].transform.scale));
 
-            glm::vec3 V0 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v], 1.0f)); // Vertex 1
-            glm::vec3 V1 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v+1], 1.0f)); // Vertex 2
-            glm::vec3 V2 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v+2], 1.0f)); // Vertex 3
+            glm::vec3 V0 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v], 1.0f));     // Vertex 1
+            glm::vec3 V1 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v + 1], 1.0f)); // Vertex 2
+            glm::vec3 V2 = glm::vec3(model * glm::vec4(objects[i].vertices.position[v + 2], 1.0f)); // Vertex 3
 
             glm::vec3 edge1 = V1 - V0; // e1
             glm::vec3 edge2 = V2 - V0; // e2
@@ -46,7 +53,7 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how thi
             glm::vec3 vector_s = origin - V0; // s
 
             float dot_product2 = intersection_param * glm::dot(vector_s, cross_product); // u
-            
+
             if (dot_product2 < 0 || dot_product2 > 1) // Outside of triangle
             {
                 continue;
@@ -68,7 +75,6 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how thi
                 closest_intersection = intersection_point;
                 found_intersection = true;
                 intersection_object = objects[i];
-                
             }
         }
     }
@@ -90,3 +96,10 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction){ // I don't know how thi
         return finished_cast;
     }
 }
+
+std::string error(std::string string)
+{
+    return "\033[1;31m" + string + "\033[0m"; // Incredible
+}
+
+#endif // HELPER_H

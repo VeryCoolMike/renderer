@@ -1,4 +1,11 @@
+#ifndef INPUT_HANDLING_H
+#define INPUT_HANDLING_H
+
 #include "helper.h"
+
+#include "structs.h"
+
+#include "gui.h"
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
@@ -10,7 +17,7 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
 
 // Camera stuff
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -46,8 +53,6 @@ std::chrono::time_point<std::chrono::high_resolution_clock> cooldownStart;
 
 std::chrono::time_point<std::chrono::high_resolution_clock> jumpCooldown;
 
-extern std::vector<object> objects;
-
 glm::vec3 movementVector = glm::vec3(0.0f, 0.0f, 0.0f);
 
 bool levelEditing = false;
@@ -64,30 +69,30 @@ float originalgravity = gravity;
 
 float height = 2.5f;
 
-extern float currentFrame;
-
 int mouse_x = 0;
 int mouse_y = 0;
 
 glm::vec3 targetMovementVector(0.0f);
 
-extern glm::mat4 proj;
-extern glm::mat4 view;
-extern glm::mat4 model;
-
 bool debounce = false;
 
-extern float fov;
-
-struct gui 
-{
-    int id;
-    bool visible;
-};
+// Extern variables
 
 extern std::vector<gui> guisVisible;
 
 extern vertices cubeObj;
+
+extern int currentIDNumber;
+
+extern float fov;
+
+extern glm::mat4 proj;
+extern glm::mat4 view;
+extern glm::mat4 model;
+
+extern float currentFrame;
+
+extern std::vector<object> objects;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -273,7 +278,6 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             targetMovementVector -= glm::normalize(glm::cross(cameraFront, cameraUp));
         }
 
-        
         bool found_collision = false;
 
         // Collision detection
@@ -309,7 +313,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
 
             if (collisionX && collisionY && collisionZ && !ignore_collisions)
             {
-                //std::cout << objects[i].name << std::endl;
+                // std::cout << objects[i].name << std::endl;
 
                 // Shortest distance to penetrate against X and Z
                 float penetrationX = std::min(maxBounds.x - one.x, one.x - minBounds.x);
@@ -371,9 +375,8 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         {
             grounded = false;
         }
-        
 
-        //std::cout << grounded << std::endl;
+        // std::cout << grounded << std::endl;
 
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         {
@@ -399,8 +402,8 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             // printf("JUMPING!\n");
             cameraPos.y += 15.0f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime;
             gravity = originalgravity * ((elapsed2 / 100.0) * 0.33); // 0.3
-            //printf("%f - %ld - %f - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0, cameraPos.y);
-            //printf("%f\n", 0.3f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime);
+            // printf("%f - %ld - %f - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0, cameraPos.y);
+            // printf("%f\n", 0.3f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime);
         }
         // Smooth transition to the target vector
         movementVector = glm::mix(movementVector, targetMovementVector, deltaTime * 5.0f);
@@ -509,7 +512,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
         lastX = xpos;
         lastY = ypos;
         firstMouse = false;
-        
     }
 
     float xoffset = xpos - lastX;
@@ -537,10 +539,11 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
     // cameraFront = glm::normalize(direction);
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) // Currently only works on the first object not any of the others, likely cause, returning at the end after making an object
-{                                                                                // causing both loop (looping through objects and vertices) to exit
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)                      // Currently only works on the first object not any of the others, likely cause, returning at the end after making an object
+{                                                                                                     // causing both loop (looping through objects and vertices) to exit
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !ImGui::GetIO().WantCaptureMouse) // https://antongerdelan.net/opengl/raycasting.html
     {
+        std::cout << "Click\n";
         // https://antongerdelan.net/opengl/raycasting.html
         int width, height;
         glfwGetWindowSize(window, &width, &height);
@@ -572,7 +575,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
                 int gun_hit_id = gun_ray.hit.id;
                 for (int i = 0; i < objects.size(); i++)
                 {
-                    
+
                     if (objects[i].id == gun_hit_id)
                     {
                         std::cout << gun_ray.hit.name << std::endl;
@@ -587,6 +590,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         }
         else
         {
+            std::cout << "Miss!\n";
             for (int i = 0; i < objects.size(); i++)
             {
                 objects[i].selected = false;
@@ -594,3 +598,5 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         }
     }
 }
+
+#endif // INPUT_HANDLING_H

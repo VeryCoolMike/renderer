@@ -1,3 +1,8 @@
+#ifndef OBJECTS_H
+#define OBJECTS_H
+
+#include "structs.h"
+
 #include <stdio.h>
 
 #include <glm/glm.hpp>
@@ -12,36 +17,7 @@ int currentIDNumber = 0;
 int currentLightID = 0;
 int currentObjID = 0;
 
-struct vertices
-{
-    std::vector<glm::vec3> position;
-    std::vector<glm::vec2> texCoords;
-    std::vector<glm::vec3> normal;
-    std::string id;
-};
-
-struct object
-{
-    int id;
-    std::string name;
-    vertices vertices;
-    struct
-    {
-        glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-        glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
-        glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    } transform;
-    glm::vec3 objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
-    unsigned int shader;
-    bool light;
-    unsigned int texture = 1;
-    bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
-    bool selected = false;
-    bool canCollide = true;
-    std::vector<float> temp_data;
-    unsigned int VAO;
-    unsigned int VBO;
-};
+extern std::vector<gui> guisVisible;
 
 struct light // This truly is an ECS
 {
@@ -54,11 +30,6 @@ struct light // This truly is an ECS
 
 std::vector<object> objects;
 std::vector<light> lightArray;
-
-struct player // Add other things later such as health and more
-{
-    int weaponID = 0;
-};
 
 struct weapon // Later add ammo, and other customizations
 {
@@ -76,18 +47,17 @@ struct weapon // Later add ammo, and other customizations
         glm::vec3 pos = glm::vec3(1.0f, -1.5f, 0.25f);
         glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
     } offset;
-    
+
     glm::vec3 objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
     std::string name = "Placeholder";
     unsigned int VAO;
     unsigned int VBO;
-
 };
 
 std::vector<weapon> weapons;
 
 std::vector<float> convertGLMToOpenGLFLoat(vertices vertices)
-{   
+{
     std::vector<float> temp_data;
 
     for (int v = 0; v < vertices.position.size(); v++) // Use `newObject` here, not `objects[v]`
@@ -159,6 +129,16 @@ object add_object(int id, std::string name, vertices vertices, bool isLight)
         lightArray.push_back(newLight);
         currentLightID += 1;
     }
+
+    for (int i = 0; i < guisVisible.size(); i++)
+    {
+        guisVisible[i].visible = false;
+    }
+
+    gui newGui;
+    newGui.id = currentIDNumber;
+    newGui.visible = false;
+    guisVisible.push_back(newGui);
 
     objects.push_back(newObject);
     currentIDNumber += 1;
@@ -268,7 +248,7 @@ vertices loadObj(const std::string &filename) // piss up
         {
             std::string prefix;
             iss >> prefix;
-            if (prefix == "v")
+            if (prefix == "v") // Vertices
             {
                 float x, y, z;
                 if (iss >> x >> y >> z)
@@ -277,7 +257,7 @@ vertices loadObj(const std::string &filename) // piss up
                 }
                 count += 1;
             }
-            else if (prefix == "vt")
+            else if (prefix == "vt") // Vertices tetures
             {
                 float x, y;
                 if (iss >> x >> y)
@@ -285,7 +265,7 @@ vertices loadObj(const std::string &filename) // piss up
                     texture_coords.push_back(glm::vec2(x, y));
                 }
             }
-            else if (prefix == "vn")
+            else if (prefix == "vn") // Vertices normals
             {
                 float x, y, z;
                 if (iss >> x >> y >> z)
@@ -295,13 +275,15 @@ vertices loadObj(const std::string &filename) // piss up
             }
             else if (prefix == "f")
             {
+                // Create 16 vertices (9 for triangle, extra 3 for quads)
                 int v1, vt1, vn1;
                 int v2, vt2, vn2;
                 int v3, vt3, vn3;
                 int v4, vt4, vn4;
 
-                char slash;
+                char slash; // slash character (istringstream only seperates on white spaces)
 
+                // Create the 9 vertices
                 iss >> v1 >> slash >> vt1 >> slash >> vn1;
                 currentVertices.position.push_back(positions[v1 - 1]);
                 currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
@@ -319,26 +301,23 @@ vertices loadObj(const std::string &filename) // piss up
 
                 if (iss >> v4 >> slash >> vt4 >> slash >> vn4) // Incase of quad
                 {
-                    if (counted == false)
-                    {
+                    // Create the extra 3 vertices
+                    iss >> v4 >> slash >> vt4 >> slash >> vn4;
 
-                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
+                    iss >> v1 >> slash >> vt1 >> slash >> vn1;
+                    currentVertices.position.push_back(positions[v1 - 1]);
+                    currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
+                    currentVertices.normal.push_back(normals[vn1 - 1]);
 
-                        iss >> v1 >> slash >> vt1 >> slash >> vn1;
-                        currentVertices.position.push_back(positions[v1 - 1]);
-                        currentVertices.texCoords.push_back(texture_coords[vt1 - 1]);
-                        currentVertices.normal.push_back(normals[vn1 - 1]);
+                    iss >> v4 >> slash >> vt4 >> slash >> vn4;
+                    currentVertices.position.push_back(positions[v4 - 1]);
+                    currentVertices.texCoords.push_back(texture_coords[vt4 - 1]);
+                    currentVertices.normal.push_back(normals[vn4 - 1]);
 
-                        iss >> v4 >> slash >> vt4 >> slash >> vn4;
-                        currentVertices.position.push_back(positions[v4 - 1]);
-                        currentVertices.texCoords.push_back(texture_coords[vt4 - 1]);
-                        currentVertices.normal.push_back(normals[vn4 - 1]);
-
-                        iss >> v3 >> slash >> vt3 >> slash >> vn3;
-                        currentVertices.position.push_back(positions[v3 - 1]);
-                        currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
-                        currentVertices.normal.push_back(normals[vn3 - 1]);
-                    }
+                    iss >> v3 >> slash >> vt3 >> slash >> vn3;
+                    currentVertices.position.push_back(positions[v3 - 1]);
+                    currentVertices.texCoords.push_back(texture_coords[vt3 - 1]);
+                    currentVertices.normal.push_back(normals[vn3 - 1]);
                 }
             }
         }
@@ -353,14 +332,14 @@ vertices loadObj(const std::string &filename) // piss up
 }
 
 // 0 is BAD Run this it's broken
-int LoadFromFile(const std::string &filename) // add_object(int id, std::string name, std::vector<float> vertices, bool isLight, unsigned int shader)
+int LoadFromFile(const std::string &filename) // Load a map from a text file
 {
     std::ifstream infile(filename);
     if (!infile.is_open())
     {
         return 0;
     } // 0 means error, -1 would crash the program or something so 0 is a safe way of letting the computer know that something went wrong
-
+      // Coming back, wtf is this meant to mean???
     std::string text;
 
     int currentIDLine;
@@ -371,6 +350,7 @@ int LoadFromFile(const std::string &filename) // add_object(int id, std::string 
 
     int lightCounter = 0;
 
+    // Making temporary variables for when creating an object
     int tempID;
     std::string tempName;
     bool tempIsLight;
@@ -380,6 +360,7 @@ int LoadFromFile(const std::string &filename) // add_object(int id, std::string 
     glm::vec3 tempLightColor;
     int tempTexture;
 
+    // Clearing the current objects
     objects.clear();
     currentIDNumber = 0;
     currentLightID = 0;
@@ -636,3 +617,5 @@ void createWeapon(vertices vertices_used, std::string name, int texture)
 
     return;
 }
+
+#endif // OBJECTS_H
