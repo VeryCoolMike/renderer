@@ -7,6 +7,8 @@
 
 #include "gui.h"
 
+#include "weaponManager.h"
+
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
@@ -543,59 +545,67 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {                                                                                                     // causing both loop (looping through objects and vertices) to exit
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !ImGui::GetIO().WantCaptureMouse) // https://antongerdelan.net/opengl/raycasting.html
     {
-        std::cout << "Click\n";
-        // https://antongerdelan.net/opengl/raycasting.html
-        int width, height;
-        glfwGetWindowSize(window, &width, &height);
-
-        float x = (2.0f * mouse_x) / width - 1.0f;
-        float y = 1.0f - (2.0f * mouse_y) / height;
-
-        glm::mat4 projection_model = glm::perspective(glm::radians(fov), (float)width / (float)height, 0.1f, 1000.0f);
-        glm::mat4 view_model = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
-        glm::vec4 ray_clip = glm::vec4(x, y, -1.0f, 1.0f);
-
-        glm::vec4 ray_eye = glm::inverse(projection_model) * ray_clip;
-        ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
-
-        glm::vec4 ray_wor = (glm::inverse(view_model) * ray_eye);
-        glm::vec3 ray_dir = glm::normalize(glm::vec3(ray_wor));
-
-        std::cout << "Mouse coordinates: " << mouse_x << ", " << mouse_y << std::endl;
-        std::cout << "Ray direction: " << ray_wor.x << ", " << ray_wor.y << ", " << ray_wor.z << std::endl;
-
-        std::cout << cameraFront.x << " - " << cameraFront.y << " - " << cameraFront.z << std::endl;
-        ray_cast gun_ray = raycast(cameraPos, ray_wor);
-        if (gun_ray.valid == true)
+        if (levelEditing || gui_visible)
         {
-            std::cout << "Hit!\n";
-            if (levelEditing || gui_visible)
-            {
-                int gun_hit_id = gun_ray.hit.id;
-                for (int i = 0; i < objects.size(); i++)
-                {
+            std::cout << "Click\n";
+            // https://antongerdelan.net/opengl/raycasting.html
+            int width, height;
+            glfwGetWindowSize(window, &width, &height);
 
-                    if (objects[i].id == gun_hit_id)
+            float x = (2.0f * mouse_x) / width - 1.0f;
+            float y = 1.0f - (2.0f * mouse_y) / height;
+
+            glm::mat4 projection_model = glm::perspective(glm::radians(fov), (float)width / (float)height, 0.1f, 1000.0f);
+            glm::mat4 view_model = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+
+            glm::vec4 ray_clip = glm::vec4(x, y, -1.0f, 1.0f);
+
+            glm::vec4 ray_eye = glm::inverse(projection_model) * ray_clip;
+            ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+
+            glm::vec4 ray_wor = (glm::inverse(view_model) * ray_eye);
+            glm::vec3 ray_dir = glm::normalize(glm::vec3(ray_wor));
+
+            std::cout << "Mouse coordinates: " << mouse_x << ", " << mouse_y << std::endl;
+            std::cout << "Ray direction: " << ray_wor.x << ", " << ray_wor.y << ", " << ray_wor.z << std::endl;
+
+            std::cout << cameraFront.x << " - " << cameraFront.y << " - " << cameraFront.z << std::endl;
+            ray_cast select_ray = raycast(cameraPos, ray_wor);
+            if (select_ray.valid == true)
+            {
+                std::cout << "Hit!\n";
+                if (levelEditing || gui_visible)
+                {
+                    int select_hit_id = select_ray.hit.id;
+                    for (int i = 0; i < objects.size(); i++)
                     {
-                        std::cout << gun_ray.hit.name << std::endl;
-                        objects[i].selected = true;
-                    }
-                    else
-                    {
-                        objects[i].selected = false;
+
+                        if (objects[i].id == select_hit_id)
+                        {
+                            std::cout << select_ray.hit.name << std::endl;
+                            objects[i].selected = true;
+                        }
+                        else
+                        {
+                            objects[i].selected = false;
+                        }
                     }
                 }
             }
-        }
-        else
-        {
-            std::cout << "Miss!\n";
-            for (int i = 0; i < objects.size(); i++)
+            else
             {
-                objects[i].selected = false;
+                std::cout << "Miss!\n";
+                for (int i = 0; i < objects.size(); i++)
+                {
+                    objects[i].selected = false;
+                }
             }
         }
+        else // Not level editing
+        {
+            fireWeapon(true);
+        }
+        
     }
 }
 

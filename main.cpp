@@ -68,10 +68,13 @@ vertices coneObj = loadObj("resources/models/cone.obj");
 vertices dbShotgun = loadObj("resources/models/shotgun.obj");
 vertices skull = loadObj("resources/models/skull.obj");
 vertices cubeObj = loadObj("resources/models/cube.obj");
+vertices sponza = loadObj("resources/models/sponza.obj");
 
 player playerInstance;
 
 std::vector<GLuint> textureArray;
+
+glm::vec3 direction;
 
 int main(void)
 {
@@ -105,7 +108,9 @@ int main(void)
         return -1;
     }
 
+    // Create weapons
     createWeapon(dbShotgun, "Shotgun", 8);
+    weapons.back().shotgun = true;
 
     /*
     ███████ ██   ██  █████  ██████  ███████ ██████  ███████
@@ -136,6 +141,7 @@ int main(void)
     glfwSwapInterval(0); // Set to 0 to turn off v-sync (You should keep this on)
 
     glEnable(GL_DEPTH_TEST); // Turn off for no depth test
+    //glEnable(GL_STENCIL_TEST); // https://learnopengl.com/Advanced-OpenGL/Stencil-testing
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
 
@@ -236,7 +242,7 @@ int main(void)
         glfwPollEvents();
         processInput(window); // Get inputs to do cool things
         glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen to remove ghosting
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the screen to remove ghosting
 
         float framesPerSecond = calculateFrameRate();
 
@@ -252,7 +258,7 @@ int main(void)
 
         //  Camera stuff
         // https://learnopengl.com/Getting-started/Camera Euler Angles
-        glm::vec3 direction;
+        
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         direction.y = sin(glm::radians(pitch));
         // direction.y = 0.0f;
@@ -282,7 +288,10 @@ int main(void)
             regularShader.setFloat3(uniformName + ".position", lightArray[i].pos.x, lightArray[i].pos.y, lightArray[i].pos.z);
             regularShader.setBool(uniformName + ".enabled", lightArray[i].enabled);
             regularShader.setFloat3(uniformName + ".color", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]);
+            regularShader.setFloat(uniformName + ".strength", lightArray[i].strength);
         }
+
+        regularShader.setInt("lightAmount", lightArray.size()); // Me when no access to regular shader :moyai:
 
         for (unsigned int i = 0; i < objects.size(); i++)
         {

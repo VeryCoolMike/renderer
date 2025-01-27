@@ -19,42 +19,6 @@ int currentObjID = 0;
 
 extern std::vector<gui> guisVisible;
 
-struct light // This truly is an ECS
-{
-    glm::vec3 pos;
-    glm::vec3 color;
-    int id;
-    bool enabled = true;
-    bool selected = false;
-};
-
-std::vector<object> objects;
-std::vector<light> lightArray;
-
-struct weapon // Later add ammo, and other customizations
-{
-    vertices vertices;
-    std::vector<float> temp_data;
-    unsigned int texture = 1;
-    struct
-    {
-        glm::vec3 pos = glm::vec3(0.0f, 15.0f, 0.0f);
-        glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
-        glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    } transform;
-    struct
-    {
-        glm::vec3 pos = glm::vec3(1.0f, -1.5f, 0.25f);
-        glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
-    } offset;
-
-    glm::vec3 objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
-    std::string name = "Placeholder";
-    unsigned int VAO;
-    unsigned int VBO;
-};
-
-std::vector<weapon> weapons;
 
 std::vector<float> convertGLMToOpenGLFLoat(vertices vertices)
 {

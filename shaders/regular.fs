@@ -5,13 +5,14 @@ struct PointLight {
     vec3 position;
     vec3 color;
     bool enabled;
+    float strength;
 };
 
 in vec2 TexCoord;
 in vec3 Normal;
 in vec3 FragPos;
 
-#define MAX_LIGHTS 50
+#define MAX_LIGHTS 500
 
 uniform sampler2D currentTexture;
 uniform vec3 objectColor;
@@ -32,9 +33,8 @@ vec3 calcPointLight(PointLight light)
     vec3 reflectDir = reflect(-lightDir, norm);
     
     float shininess = 32.0;
-    float intensity = 1.0;
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-    vec3 specular = intensity * spec * light.color;
+    vec3 specular = spec * light.color;
     
     vec3 ambient = ambientStrength * light.color;
     
@@ -53,14 +53,11 @@ vec3 calcPointLight(PointLight light)
 void main()
 {
     vec3 result = vec3(0.0, 0.0, 0.0);
-    for (int i = 0; i < MAX_LIGHTS; i++)
+    for (int i = 0; i < lightAmount; i++)
     {
-        if (i < lightAmount)
+        if (pointLights[i].enabled == true)
         {
-            if (pointLights[i].enabled == true)
-            {
-               result += calcPointLight(pointLights[i]);
-            }
+            result += calcPointLight(pointLights[i]) * pointLights[i].strength;
         }
     }
     

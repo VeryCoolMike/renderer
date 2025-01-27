@@ -14,8 +14,9 @@
 
 struct player // Add other things later such as health and more
 {
-    int weaponID = 2;
+    int weaponID = 0;
 };
+
 
 struct gui
 {
@@ -53,5 +54,51 @@ struct object
     unsigned int VAO;
     unsigned int VBO;
 };
+
+std::vector<object> objects;
+
+struct weapon // Later add ammo, and other customizations
+{
+    vertices vertices;
+    std::vector<float> temp_data;
+    unsigned int texture = 1;
+    struct
+    {
+        glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    } transform;
+    struct
+    {
+        glm::vec3 pos = glm::vec3(1.0f, -1.5f, 0.25f);
+        glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
+    } offset;
+
+    glm::vec3 objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
+    std::string name = "Placeholder";
+    unsigned int VAO;
+    unsigned int VBO;
+
+    // Stats
+
+    // Shotgun
+    bool shotgun = false;
+    int pellets = 10;
+    float spread = 7.5f; // Spread (radius of circle, not diameter)
+};
+
+std::vector<weapon> weapons;
+
+struct light // This truly is an ECS
+{
+    glm::vec3 pos;
+    glm::vec3 color;
+    int id;
+    bool enabled = true;
+    bool selected = false;
+    float strength = 0.1f;
+};
+
+std::vector<light> lightArray;
 
 #endif // STRUCTS_H

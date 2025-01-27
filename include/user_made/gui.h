@@ -105,16 +105,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         if (ImGui::Button("Make Light"))
         {
             add_object(currentIDNumber, "light", cubeObj, true);
-            int counter = 0;
-            for (int i = 0; i < currentIDNumber; i++)
-            {
-                const auto &obj = objects[i];
-                if (obj.light == true)
-                {
-                    counter += 1;
-                }
-            }
-            regularShader.setInt("lightAmount", counter); // Avoiding running expensive operations every frame
+            
         }
 
         ImGui::InputFloat("Camera Speed", &real_camera_speed, 0.1f);
