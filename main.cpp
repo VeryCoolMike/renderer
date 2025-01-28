@@ -63,6 +63,8 @@ std::vector<gui> guisVisible;
 
 int fileCount = 0;
 
+int currentShader = 0;
+
 // Loading files
 vertices coneObj = loadObj("resources/models/cone.obj");
 vertices dbShotgun = loadObj("resources/models/shotgun.obj");
@@ -122,6 +124,7 @@ int main(void)
     */
     Shader lightShader("shaders/lights.vs", "shaders/lights.fs");
     Shader regularShader("shaders/regular.vs", "shaders/regular.fs");
+    Shader screenShader("shaders/screenshader.vs", "shaders/screenshader.fs");
 
     regularShader.use();
 
@@ -140,7 +143,6 @@ int main(void)
 
     glfwSwapInterval(0); // Set to 0 to turn off v-sync (You should keep this on)
 
-    glEnable(GL_DEPTH_TEST); // Turn off for no depth test
     //glEnable(GL_STENCIL_TEST); // https://learnopengl.com/Advanced-OpenGL/Stencil-testing
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
@@ -159,6 +161,7 @@ int main(void)
     // Textures
     // https://learnopengl.com/Getting-started/Textures Documentation about textures
     // I thought I could only have 32 textures??? Nope, unlimited??? How does this work, I don't know I thought the max for GL_TEXTURE[?] was 32. Wacky!
+    // Edit: turns out i can use 35661, yeah thats enough
 
     for (auto i : std::filesystem::directory_iterator("resources/textures"))
     {
@@ -168,6 +171,7 @@ int main(void)
             std::cout << i << " - " << textureArray.size() << std::endl;
             glActiveTexture(GL_TEXTURE0 + fileCount + 1);
             glBindTexture(GL_TEXTURE_2D, textureArray[fileCount]);
+            std::cout << "Using texture unit: " << (fileCount) << std::endl;
             fileCount++;
         }
     }
@@ -220,29 +224,82 @@ int main(void)
         guisVisible.push_back(newGui);
     }
 
-    int counter = 0;
-    for (int i = 0; i < currentIDNumber; i++)
-    {
-        if (objects[i].enabled == false)
-        {
-            continue;
-        }
-        const auto &obj = objects[i];
-        if (obj.light == true)
-        {
-            counter += 1;
-        }
-    }
-    regularShader.setInt("lightAmount", counter); // Avoiding running expensive operations every frame
+    // Blending for transparent textures
+    glEnable(GL_BLEND);  
 
-    while (!glfwWindowShouldClose(window)) // Make the window not immediately close
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+
+    // Cull faces that aren't visible
+    glEnable(GL_CULL_FACE);
+
+    // Frame buffer https://learnopengl.com/Advanced-OpenGL/Framebuffers
+
+    // Making the quad
+
+    float quadVertices[] = 
+    {
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    screenShader.use();
+    screenShader.setInt("screenTexture", 16);
+
+    unsigned int framebuffer;
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+    // Generate the texture
+    unsigned int textureColorbuffer;
+    glGenTextures(1, &textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 1920, 1080);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cout << error("ERROR: FRAMEBUFFER is not complete!") << std::endl;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    while (!glfwWindowShouldClose(window)) // Render loop
     {
         glfwMakeContextCurrent(window);
 
         glfwPollEvents();
         processInput(window); // Get inputs to do cool things
-        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the screen to remove ghosting
+        
 
         float framesPerSecond = calculateFrameRate();
 
@@ -277,7 +334,17 @@ int main(void)
         {
             direction.y = 0.0f;
         }
+        
+        // Actual rendering
 
+        // First pass
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
+
+
+        regularShader.use();
         regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
         lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
 
@@ -295,7 +362,7 @@ int main(void)
 
         for (unsigned int i = 0; i < objects.size(); i++)
         {
-            if (objects[i].enabled == false)
+            if (objects[i].enabled == false || objects[i].visible == false)
             {
                 continue;
             }
@@ -360,6 +427,9 @@ int main(void)
 
         // Draw viewmodel
 
+        // Culling removes faces that are visible for some reason
+        glDisable(GL_CULL_FACE);
+
         // Disable despth testing causes strange issues
         regularShader.use();
         // Assuming that the weapon exists, add error checking!
@@ -408,6 +478,8 @@ int main(void)
             std::cout << error("Current weapon index out of range") << std::endl;
         }
 
+        glEnable(GL_CULL_FACE);
+
         // Needs to be here for some reason or light vertex shader will stop working?????
         lightShader.use();
 
@@ -422,6 +494,21 @@ int main(void)
         regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
         regularShader.setFloat("ambientStrength", ambientintensity);
+
+        // Second pass
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        screenShader.use();
+        screenShader.setInt("shader", currentShader);
+        glBindVertexArray(quadVAO);
+        glActiveTexture(GL_TEXTURE16);
+        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        
 
         // Render gui
         renderGui(window, regularShader);
@@ -442,6 +529,7 @@ int main(void)
     {
         glDeleteTextures(1, &textureArray[i]);
     }
+    glDeleteFramebuffers(1, &framebuffer);
     glDeleteProgram(lightShader.ID);
     glDeleteProgram(regularShader.ID);
     ImGui_ImplOpenGL3_Shutdown();

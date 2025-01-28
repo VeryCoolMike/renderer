@@ -75,4 +75,17 @@ void main()
     {
         FragColor = texture(currentTexture, TexCoord);
     }
+
+    // Depth
+    
+    //float depth = gl_FragCoord.z;
+    //float ndc = depth * 2.0f - 1.0f;
+
+    //float near = 0.1f;
+    //float far = 100.0f;
+
+    //float linearDepth = (2.0f * near * far) / (far + near - ndc * (far - near));
+
+    //FragColor = vec4(vec3(linearDepth/far), 1.0f);
+    
 }

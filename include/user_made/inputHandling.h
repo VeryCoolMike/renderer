@@ -51,6 +51,7 @@ bool firstMouse = true;
 bool fullBright = false;
 
 bool duplicateCooldown = false;
+
 std::chrono::time_point<std::chrono::high_resolution_clock> cooldownStart;
 
 std::chrono::time_point<std::chrono::high_resolution_clock> jumpCooldown;
@@ -98,6 +99,10 @@ extern std::vector<object> objects;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+    if (ImGui::GetIO().WantCaptureKeyboard)
+    {
+        return;
+    }
 
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
@@ -176,6 +181,11 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 void processInput(GLFWwindow *window) // This is perfect frame input for things that are held down
 {
 
+    if (ImGui::GetIO().WantCaptureKeyboard)
+    {
+        return;
+    }
+
     if (!levelEditing)
     {
         if (!grounded)
@@ -251,6 +261,7 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
 
     // Playing movement
 
+    // Changing this later
     if (!levelEditing)
     {
         targetMovementVector = glm::vec3(0.0f);
@@ -401,11 +412,8 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
         }
         else
         {
-            // printf("JUMPING!\n");
             cameraPos.y += 15.0f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime;
             gravity = originalgravity * ((elapsed2 / 100.0) * 0.33); // 0.3
-            // printf("%f - %ld - %f - %f\n", ((elapsed2 / 100.0) * 3.3), elapsed2, elapsed2 / 100.0, cameraPos.y);
-            // printf("%f\n", 0.3f * (1.0 - (elapsed2 / 1000) * 9) * deltaTime);
         }
         // Smooth transition to the target vector
         movementVector = glm::mix(movementVector, targetMovementVector, deltaTime * 5.0f);
@@ -543,10 +551,17 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)                      // Currently only works on the first object not any of the others, likely cause, returning at the end after making an object
 {                                                                                                     // causing both loop (looping through objects and vertices) to exit
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !ImGui::GetIO().WantCaptureMouse) // https://antongerdelan.net/opengl/raycasting.html
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) // https://antongerdelan.net/opengl/raycasting.html
     {
-        if (levelEditing || gui_visible)
+        std::cout << "Clicked!\n";
+        if (gui_visible)
         {
+            if (ImGui::GetIO().WantCaptureMouse)
+            {
+                return;
+            }
+            std::cout << levelEditing << std::endl;
+            std::cout << gui_visible << std::endl;
             std::cout << "Click\n";
             // https://antongerdelan.net/opengl/raycasting.html
             int width, height;
@@ -606,6 +621,10 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
             fireWeapon(true);
         }
         
+    }
+    else
+    {
+        std::cout << ImGui::GetIO().WantCaptureMouse << std::endl;
     }
 }
 

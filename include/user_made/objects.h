@@ -524,6 +524,7 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
     std::cout << "Object size: " << objectSize << std::endl;
     std::cout << "Object offset: " << objectOffset << std::endl;
     infile.close();
+
     return lightCounter;
 }
 

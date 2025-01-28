@@ -29,6 +29,8 @@ extern glm::vec3 cameraPos;
 extern float fov;
 extern bool firstMouse;
 
+extern int currentShader;
+
 void createGui(GLFWwindow *window)
 {
     IMGUI_CHECKVERSION();
@@ -112,6 +114,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
 
         ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
         ImGui::ColorPicker4("Background Color", backgroundColor);
+        ImGui::InputInt("Current Shader", &currentShader);
 
         ImGui::NewLine();
         ImGui::Text("Browser");
@@ -196,10 +199,22 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                     }
                     ImGui::NewLine();
                     ImGui::SetNextItemWidth(150.0f);
+                    ImGui::Checkbox("Visible", &objects[n].visible);
                     ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[n].objectColor));
                     ImGui::InputFloat3("Position", &objects[n].transform.pos.x);
                     ImGui::InputFloat3("Rotation", &objects[n].transform.rot.x);
                     ImGui::InputFloat3("Scale", &objects[n].transform.scale.x);
+                    if (objects[n].light == true)
+                    {
+                        for (int j = 0; j < lightArray.size(); j++)
+                        {
+                            if (lightArray[j].id == objects[n].id)
+                            {
+                                ImGui::InputFloat("Light Strength", &lightArray[j].strength);
+                            }
+                        }
+                        
+                    }
                     if (ImGui::Button("Delete"))
                     {
                         // Remove the object at index n

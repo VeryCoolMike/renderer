@@ -48,9 +48,10 @@ struct object
     bool light;
     unsigned int texture = 1;
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
+    bool visible = true; // Make the object completely visible or invisible (rendered / not rendered)
     bool selected = false;
     bool canCollide = true;
-    std::vector<float> temp_data;
+    std::vector<float> temp_data; // Used for OpenGL to correctly parse my custom way of saving objects
     unsigned int VAO;
     unsigned int VBO;
 };
@@ -96,7 +97,7 @@ struct light // This truly is an ECS
     int id;
     bool enabled = true;
     bool selected = false;
-    float strength = 0.1f;
+    float strength = 1.0f;
 };
 
 std::vector<light> lightArray;
