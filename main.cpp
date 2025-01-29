@@ -27,37 +27,25 @@
 #include "include/user_made/shader.h"
 #include "include/user_made/textures.h"
 #include "include/user_made/gui.h"
+#include "include/user_made/render.h"
 
 uint32_t getTick();
 
 float calculateFrameRate();
 
-float rotation = 0.0f;
-float size = 1.0f;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
+
+int currentWidth;
+int currentHeight;
 
 glm::mat4 trans = glm::mat4(1.0f);
 
 float lastFrame = 0.0f;
-
-float fov = 90.0f;
-
-glm::vec3 lightcolor = glm::vec3(1.0f, 0.0f, 0.0f);
-
-float ambientintensity = 0.1f;
-
-glm::vec3 lightPos(10.0f, 20.0f, 0.0f);
-
-float specularStrength = 0.5;
-
 float lastFPS = 0.0f;
-
-GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
-
 float currentFrame;
 
-glm::mat4 proj;
-glm::mat4 view;
-glm::mat4 model;
+float fov = 90.0f;
 
 std::vector<gui> guisVisible;
 
@@ -78,6 +66,12 @@ std::vector<GLuint> textureArray;
 
 glm::vec3 direction;
 
+unsigned int textureColorbuffer;
+unsigned int framebuffer;
+unsigned int rbo;
+
+glm::mat4 view = glm::mat4(1.0f);
+
 int main(void)
 {
 
@@ -90,7 +84,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create the window (width, height, name, monitor, ???)
-    GLFWwindow *window = glfwCreateWindow(1920, 1080, "A little more complex rendering", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "A little more complex rendering", NULL, NULL);
     if (window == NULL) // Check if the window was made correctly
     {
         std::cout << error("Failed to create window!\n") << std::endl;
@@ -100,7 +94,7 @@ int main(void)
     glfwMakeContextCurrent(window); // Set the context to the new window
     gladLoadGL();                   // Load glad to stop random segmentation fault
 
-    glViewport(0, 0, 1920, 1080); // Create a viewport for the new window
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT); // Create a viewport for the new window
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); // Resize the viewport if the window is resized
 
@@ -128,7 +122,6 @@ int main(void)
 
     regularShader.use();
 
-    regularShader.setFloat3("lightColor", lightcolor[0], lightcolor[1], lightcolor[2]);
     regularShader.setFloat("ambientStrength", ambientintensity);
 
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
@@ -171,7 +164,6 @@ int main(void)
             std::cout << i << " - " << textureArray.size() << std::endl;
             glActiveTexture(GL_TEXTURE0 + fileCount + 1);
             glBindTexture(GL_TEXTURE_2D, textureArray[fileCount]);
-            std::cout << "Using texture unit: " << (fileCount) << std::endl;
             fileCount++;
         }
     }
@@ -203,7 +195,7 @@ int main(void)
     // Get the camera pos, forward, up, and right (up and cameraUp are not the same)
 
     // Create the perspective projection
-    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
     add_object(currentIDNumber, "floor", cubeObj, false);
@@ -236,19 +228,6 @@ int main(void)
 
     // Making the quad
 
-    float quadVertices[] = 
-    {
-        // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-
-        -1.0f,  1.0f,  0.0f, 1.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-         1.0f,  1.0f,  1.0f, 1.0f
-    };
-
-    unsigned int quadVAO, quadVBO;
     glGenVertexArrays(1, &quadVAO);
     glGenBuffers(1, &quadVBO);
     glBindVertexArray(quadVAO);
@@ -262,26 +241,23 @@ int main(void)
     screenShader.use();
     screenShader.setInt("screenTexture", 16);
 
-    unsigned int framebuffer;
+    
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
     // Generate the texture
-    unsigned int textureColorbuffer;
+    
     glGenTextures(1, &textureColorbuffer);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    int width, height;
-    glfwGetWindowSize(window, &width, &height);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
 
-    unsigned int rbo;
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 1920, 1080);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
@@ -322,7 +298,7 @@ int main(void)
         direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         cameraFront = glm::normalize(direction);
 
-        glm::mat4 view = glm::mat4(1.0f);
+        view = glm::mat4(1.0f);
 
         glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
         glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
@@ -336,179 +312,7 @@ int main(void)
         }
         
         // Actual rendering
-
-        // First pass
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glEnable(GL_DEPTH_TEST);
-        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
-
-
-        regularShader.use();
-        regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
-        lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
-
-        for (int i = 0; i < lightArray.size(); i++) // Ah yes, peak, run a for loop every single frame multiple times, truly the pythonic way.
-        {
-            lightArray[i].pos = objects[lightArray[i].id].transform.pos;
-            std::string uniformName = "pointLights[" + std::to_string(i) + "]";
-            regularShader.setFloat3(uniformName + ".position", lightArray[i].pos.x, lightArray[i].pos.y, lightArray[i].pos.z);
-            regularShader.setBool(uniformName + ".enabled", lightArray[i].enabled);
-            regularShader.setFloat3(uniformName + ".color", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]);
-            regularShader.setFloat(uniformName + ".strength", lightArray[i].strength);
-        }
-
-        regularShader.setInt("lightAmount", lightArray.size()); // Me when no access to regular shader :moyai:
-
-        for (unsigned int i = 0; i < objects.size(); i++)
-        {
-            if (objects[i].enabled == false || objects[i].visible == false)
-            {
-                continue;
-            }
-            const auto &obj = objects[i];
-
-            if (obj.light)
-            {
-                lightShader.use();
-                for (int i = 0; i < lightArray.size(); i++) // Ah yes, peak, run a for loop every single frame multiple times, truly the pythonic way.
-                {
-                    lightArray[i].color = objects[lightArray[i].id].objectColor;
-                    if (lightArray[i].id == obj.id)
-                    {
-                        lightShader.setFloat3("lightColor", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]);
-                    }
-                }
-                lightShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-                lightShader.setInt("currentTexture", obj.texture);
-            }
-            else
-            {
-                regularShader.use();
-
-                regularShader.setInt("currentTexture", obj.texture);
-                if (obj.selected == true)
-                {
-                    regularShader.setBool("selected", true);
-                }
-                else
-                {
-                    regularShader.setBool("selected", false);
-                }
-
-                regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-                regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
-                regularShader.setBool("fullBright", fullBright);
-                regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
-            }
-
-            glBindVertexArray(objects[i].VAO);
-
-            // Transformations
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, obj.transform.pos);
-            model = glm::scale(model, glm::vec3(obj.transform.scale));
-            glm::vec3 angle = obj.transform.rot;
-            model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
-
-            if (obj.light == true)
-            {
-                glUniformMatrix4fv(glGetUniformLocation(lightShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
-            }
-            else
-            {
-                glUniformMatrix4fv(glGetUniformLocation(regularShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
-            }
-
-            glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
-        }
-
-        // Draw viewmodel
-
-        // Culling removes faces that are visible for some reason
-        glDisable(GL_CULL_FACE);
-
-        // Disable despth testing causes strange issues
-        regularShader.use();
-        // Assuming that the weapon exists, add error checking!
-        int currentWeapon = playerInstance.weaponID;
-
-        if (currentWeapon + 1 <= weapons.size() && currentWeapon >= 0) // One weapon would mean size 1 but position 0
-        {
-            regularShader.setInt("currentTexture", weapons[currentWeapon].texture);
-
-            regularShader.setBool("selected", false);
-            regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-            regularShader.setFloat3("objectColor", weapons[currentWeapon].objectColor[0], weapons[currentWeapon].objectColor[1], weapons[currentWeapon].objectColor[2]);
-            regularShader.setBool("fullBright", fullBright);
-            regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
-
-            glBindVertexArray(weapons[currentWeapon].VAO);
-
-            // Transformations
-            weapons[currentWeapon].transform.pos = cameraPos + weapons[currentWeapon].offset.pos;
-            weapons[currentWeapon].transform.rot.y = -yaw;
-            weapons[currentWeapon].transform.rot.z = pitch;
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cameraPos); // Make it go to camerapos
-            model = glm::scale(model, glm::vec3(weapons[currentWeapon].transform.scale));
-            glm::vec3 angle = weapons[currentWeapon].transform.rot;
-            model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
-            model = glm::translate(model, weapons[currentWeapon].offset.pos);
-
-            glUniformMatrix4fv(glGetUniformLocation(regularShader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
-            glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
-        }
-        else
-        {
-            if (currentWeapon + 1 > weapons.size()) // Get out of errors
-            {
-                playerInstance.weaponID = weapons.size() - 1;
-            }
-            if (currentWeapon < 0)
-            {
-                playerInstance.weaponID = 0;
-            }
-
-            std::cout << error("Current weapon index out of range") << std::endl;
-        }
-
-        glEnable(GL_CULL_FACE);
-
-        // Needs to be here for some reason or light vertex shader will stop working?????
-        lightShader.use();
-
-        lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
-        lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
-        lightShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
-
-        regularShader.use();
-
-        // Update things
-        glm::mat4 proj = glm::perspective(glm::radians(fov), (float)1920 / (float)1080, 0.1f, 1000.0f);
-        regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
-
-        regularShader.setFloat("ambientStrength", ambientintensity);
-
-        // Second pass
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glDisable(GL_DEPTH_TEST);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        screenShader.use();
-        screenShader.setInt("shader", currentShader);
-        glBindVertexArray(quadVAO);
-        glActiveTexture(GL_TEXTURE16);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        
+        render(regularShader, lightShader, screenShader);
 
         // Render gui
         renderGui(window, regularShader);
@@ -532,6 +336,7 @@ int main(void)
     glDeleteFramebuffers(1, &framebuffer);
     glDeleteProgram(lightShader.ID);
     glDeleteProgram(regularShader.ID);
+    glDeleteProgram(screenShader.ID);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
 

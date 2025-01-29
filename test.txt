@@ -14,9 +14,9 @@ floor
 100
 1
 100
-
+resources/models/cube.obj
 1
-bmw
+box
 0
 1
 1
@@ -31,4 +31,4 @@ bmw
 1
 1
 1
-resources/models/bmw.obj
+resources/models/cube.obj

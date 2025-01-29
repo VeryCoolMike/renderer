@@ -2,11 +2,8 @@
 #define INPUT_HANDLING_H
 
 #include "helper.h"
-
 #include "structs.h"
-
 #include "gui.h"
-
 #include "weaponManager.h"
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
@@ -97,6 +94,10 @@ extern float currentFrame;
 
 extern std::vector<object> objects;
 
+extern unsigned int textureColorbuffer;
+extern unsigned int framebuffer;
+extern unsigned int rbo;
+
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
     if (ImGui::GetIO().WantCaptureKeyboard)
@@ -175,6 +176,32 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+    // Generate the texture
+    
+    glGenTextures(1, &textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cout << error("ERROR: FRAMEBUFFER is not complete!") << std::endl;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, width, height);
 }
 
@@ -540,13 +567,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
         pitch = 89.0f;
     if (pitch < -89.0f)
         pitch = -89.0f;
-
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    // direction.y = sin(glm::radians(pitch));
-    direction.y = 0.0f;
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    // cameraFront = glm::normalize(direction);
 }
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)                      // Currently only works on the first object not any of the others, likely cause, returning at the end after making an object
@@ -563,7 +583,6 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
             std::cout << levelEditing << std::endl;
             std::cout << gui_visible << std::endl;
             std::cout << "Click\n";
-            // https://antongerdelan.net/opengl/raycasting.html
             int width, height;
             glfwGetWindowSize(window, &width, &height);
 

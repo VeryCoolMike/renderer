@@ -13,6 +13,20 @@
 
 #include <vector>
 
+float quadVertices[] = 
+{
+    // positions   // texCoords
+    -1.0f,  1.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+
+    -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+};
+
+unsigned int quadVAO, quadVBO;
+
 int currentIDNumber = 0;
 int currentLightID = 0;
 int currentObjID = 0;
