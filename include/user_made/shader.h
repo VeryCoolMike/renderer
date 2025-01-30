@@ -106,6 +106,7 @@ public:
         glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), value1, value2, value3);
     }
 
+
 private:
     // Function to check for errors in compilation
     // ------------------------------------------------------------------------

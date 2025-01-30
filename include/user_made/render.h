@@ -22,6 +22,8 @@ extern unsigned int textureColorbuffer;
 extern unsigned int framebuffer;
 extern unsigned int rbo;
 
+extern unsigned int depthMapFBO;
+
 extern glm::vec3 cameraPos;
 
 extern bool fullBright;
@@ -30,6 +32,8 @@ extern int currentShader;
 
 extern const unsigned int SCR_WIDTH;
 extern const unsigned int SCR_HEIGHT;
+extern const unsigned int SHADOW_WIDTH;
+extern const unsigned int SHADOW_HEIGHT;
 
 extern float fov;
 extern float yaw;
@@ -37,8 +41,9 @@ extern float pitch;
 
 extern player playerInstance;
 
-void render(Shader regularShader, Shader lightShader, Shader screenShader)
+void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader screenShader)
 {
+
     // First pass
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glEnable(GL_DEPTH_TEST);
@@ -186,6 +191,8 @@ void render(Shader regularShader, Shader lightShader, Shader screenShader)
     regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
+
+
     // Update things
     //regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
@@ -205,6 +212,43 @@ void render(Shader regularShader, Shader lightShader, Shader screenShader)
     glActiveTexture(GL_TEXTURE16);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+void renderDepth(Shader depthShader, Shader screenShader)
+{
+    // First pass
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
+
+    proj = glm::perspective(glm::radians(fov), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, 0.1f, 1000.0f);
+
+    depthShader.use();
+
+    for (unsigned int i = 0; i < objects.size(); i++)
+    {
+        if (objects[i].enabled == false || objects[i].visible == false)
+        {
+            continue;
+        }
+        const auto &obj = objects[i];
+
+        // Transformations
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, obj.transform.pos);
+        model = glm::scale(model, glm::vec3(obj.transform.scale));
+        glm::vec3 angle = obj.transform.rot;
+        model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        depthShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
+        
+        glBindVertexArray(objects[i].VAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+    }
 }
 
 #endif // RENDER_H

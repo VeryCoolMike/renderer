@@ -36,6 +36,7 @@ vec3 calculateKernel(float kernel[9])
 
 void main()
 {
+   
    switch(shader)
    {
       case 0:

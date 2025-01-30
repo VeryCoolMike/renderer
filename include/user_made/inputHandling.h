@@ -98,6 +98,9 @@ extern unsigned int textureColorbuffer;
 extern unsigned int framebuffer;
 extern unsigned int rbo;
 
+extern int currentWidth;
+extern int currentHeight;
+
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
     if (ImGui::GetIO().WantCaptureKeyboard)
@@ -200,6 +203,9 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     {
         std::cout << error("ERROR: FRAMEBUFFER is not complete!") << std::endl;
     }
+
+    currentWidth = width;
+    currentHeight = height;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, width, height);

@@ -8,9 +8,15 @@ struct PointLight {
     float strength;
 };
 
-in vec2 TexCoord;
-in vec3 Normal;
-in vec3 FragPos;
+in VS_OUT
+{
+    vec3 FragPos;
+    vec3 Normal;
+    vec2 TexCoord;
+    vec4 FragPosLightSpace;
+} fs_in;
+
+uniform sampler2D shadowMap;
 
 #define MAX_LIGHTS 500
 
@@ -24,12 +30,39 @@ uniform bool selected;
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
 
+float shadowCalculation(vec4 FragPosLightSpace)
+{
+    vec3 projCoords = FragPosLightSpace.xyz / FragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+    float bias = 0.005f;
+    float shadow = 0.0f;
+    vec2 texelSize = 1.0f / textureSize(shadowMap, 0);
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
+    
+    if (projCoords.z > 1.0f)
+    {
+        shadow = 0.0f;
+    }
+
+    return shadow;
+}
+
 vec3 calcPointLight(PointLight light)
 {
-    float distance = length(light.position - FragPos);
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(light.position - FragPos);
-    vec3 viewDir = normalize(viewPos - FragPos);
+    float distance = length(light.position - fs_in.FragPos);
+    vec3 norm = normalize(fs_in.Normal);
+    vec3 lightDir = normalize(light.position - fs_in.FragPos);
+    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
     
     float shininess = 32.0;
@@ -46,8 +79,13 @@ vec3 calcPointLight(PointLight light)
     ambient *= attenuation;
     diffuse *= attenuation;
     specular *= attenuation;
+
+
+    float shadow = shadowCalculation(fs_in.FragPosLightSpace);
+
     
-    return (ambient + diffuse + specular) * objectColor;
+    
+    return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor; 
 }
 
 void main()
@@ -60,32 +98,20 @@ void main()
             result += calcPointLight(pointLights[i]) * pointLights[i].strength;
         }
     }
+
     
     
     if (fullBright)
     {
-        FragColor = texture(currentTexture, TexCoord) * vec4(result, 1.0) + vec4(1.0);
+        FragColor = texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0) + vec4(1.0);
     }
     else
     {
-        FragColor = texture(currentTexture, TexCoord) * vec4(result, 1.0);
+        FragColor = texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0);
     }
 
     if (selected == true)
     {
-        FragColor = texture(currentTexture, TexCoord);
+        FragColor = texture(currentTexture, fs_in.TexCoord);
     }
-
-    // Depth
-    
-    //float depth = gl_FragCoord.z;
-    //float ndc = depth * 2.0f - 1.0f;
-
-    //float near = 0.1f;
-    //float far = 100.0f;
-
-    //float linearDepth = (2.0f * near * far) / (far + near - ndc * (far - near));
-
-    //FragColor = vec4(vec3(linearDepth/far), 1.0f);
-    
 }

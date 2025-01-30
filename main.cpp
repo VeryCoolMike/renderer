@@ -36,8 +36,8 @@ float calculateFrameRate();
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
-int currentWidth;
-int currentHeight;
+int currentWidth = SCR_WIDTH;
+int currentHeight = SCR_HEIGHT;
 
 glm::mat4 trans = glm::mat4(1.0f);
 
@@ -69,6 +69,10 @@ glm::vec3 direction;
 unsigned int textureColorbuffer;
 unsigned int framebuffer;
 unsigned int rbo;
+
+unsigned int depthMapFBO;
+
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
 glm::mat4 view = glm::mat4(1.0f);
 
@@ -118,7 +122,8 @@ int main(void)
     */
     Shader lightShader("shaders/lights.vs", "shaders/lights.fs");
     Shader regularShader("shaders/regular.vs", "shaders/regular.fs");
-    Shader screenShader("shaders/screenshader.vs", "shaders/screenshader.fs");
+    Shader screenShader("shaders/screenShader.vs", "shaders/screenShader.fs");
+    Shader depthShader("shaders/depthShader.vs", "shaders/depthShader.fs");
 
     regularShader.use();
 
@@ -239,13 +244,13 @@ int main(void)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     screenShader.use();
-    screenShader.setInt("screenTexture", 16);
+    screenShader.setInt("screenShader", 16);
+    screenShader.setInt("depthMap", 16);
 
+    // Frame buffer for full screen shaders
     
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-    // Generate the texture
     
     glGenTextures(1, &textureColorbuffer);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
@@ -264,8 +269,28 @@ int main(void)
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        std::cout << error("ERROR: FRAMEBUFFER is not complete!") << std::endl;
+        std::cout << error("ERROR: FRAMEBUFFER (FULLSCREEN SHADER) is not complete!") << std::endl;
     }
+
+    // Frame buffer for shadows
+
+    glGenFramebuffers(1, &depthMapFBO);
+
+    // Create depth map texture
+
+    unsigned int depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE); // To tell OpenGL that there is no colour data
+    glReadBuffer(GL_NONE);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -310,9 +335,45 @@ int main(void)
         {
             direction.y = 0.0f;
         }
+
+        
+        // Rendering to depth map
+        float near_plane = 1.0f, far_plane = 15.5f;
+        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightSpaceMatrix = lightProjection * lightView; // (T)
+
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        depthShader.use();
+        depthShader.setMatrix4fv("lightSpaceMatrix", 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
+        glCullFace(GL_FRONT);
+        renderDepth(depthShader, screenShader);
+        glCullFace(GL_BACK);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         
         // Actual rendering
-        render(regularShader, lightShader, screenShader);
+        glViewport(0, 0, currentWidth, currentHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        
+        screenShader.use();
+        screenShader.setInt("shader", currentShader);
+        screenShader.setInt("screenTexture", 16);
+        screenShader.setInt("depthMap", 17);
+
+        regularShader.use();
+        regularShader.setInt("shadowMap", 17);
+        regularShader.setMatrix4fv("lightSpaceMatrix", 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        
+        glBindVertexArray(quadVAO);
+        glActiveTexture(GL_TEXTURE17);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        
+        render(regularShader, lightShader, depthShader, screenShader);
 
         // Render gui
         renderGui(window, regularShader);
