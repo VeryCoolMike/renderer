@@ -18,11 +18,11 @@ float quadVertices[] =
     // positions   // texCoords
     -1.0f,  1.0f,  0.0f, 1.0f,
     -1.0f, -1.0f,  0.0f, 0.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
+    1.0f, -1.0f,  1.0f, 0.0f,
 
     -1.0f,  1.0f,  0.0f, 1.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f,  1.0f, 1.0f
+    1.0f, -1.0f,  1.0f, 0.0f,
+    1.0f,  1.0f,  1.0f, 1.0f
 };
 
 unsigned int quadVAO, quadVBO;
@@ -38,7 +38,7 @@ std::vector<float> convertGLMToOpenGLFLoat(vertices vertices)
 {
     std::vector<float> temp_data;
 
-    for (int v = 0; v < vertices.position.size(); v++) // Use `newObject` here, not `objects[v]`
+    for (int v = 0; v < vertices.position.size(); v++)
     {
         // Positions
         temp_data.push_back(vertices.position[v].x);
@@ -117,6 +117,7 @@ object add_object(int id, std::string name, vertices vertices, bool isLight)
     newGui.id = currentIDNumber;
     newGui.visible = false;
     guisVisible.push_back(newGui);
+    std::cout << guisVisible.back().id << std::endl;
 
     objects.push_back(newObject);
     currentIDNumber += 1;
@@ -251,7 +252,7 @@ vertices loadObj(const std::string &filename) // piss up
                     normals.push_back(glm::vec3(x, y, z));
                 }
             }
-            else if (prefix == "f")
+            else if (prefix == "f") // This is so peak
             {
                 // Create 16 vertices (9 for triangle, extra 3 for quads)
                 int v1, vt1, vn1;

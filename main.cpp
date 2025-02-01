@@ -18,10 +18,6 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
 #include "include/user_made/objects.h"
 #include "include/user_made/inputHandling.h"
 #include "include/user_made/shader.h"
@@ -76,6 +72,11 @@ const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
 glm::mat4 view = glm::mat4(1.0f);
 
+float lightFov = 90.0f;
+
+/// @brief 
+/// @param  
+/// @return 
 int main(void)
 {
 
@@ -111,6 +112,15 @@ int main(void)
     // Create weapons
     createWeapon(dbShotgun, "Shotgun", 8);
     weapons.back().shotgun = true;
+
+    if (weapons.back().temp_data == convertGLMToOpenGLFLoat(dbShotgun))
+    {
+        std::cout << "Correct" << std::endl;
+    }
+    else
+    {
+        std::cout << "Incorrect" << std::endl;
+    }
 
     /*
     ███████ ██   ██  █████  ██████  ███████ ██████  ███████
@@ -160,6 +170,7 @@ int main(void)
     // https://learnopengl.com/Getting-started/Textures Documentation about textures
     // I thought I could only have 32 textures??? Nope, unlimited??? How does this work, I don't know I thought the max for GL_TEXTURE[?] was 32. Wacky!
     // Edit: turns out i can use 35661, yeah thats enough
+    // Edit 2: Figured out that 32 is the maximum texture units i can have activated (Change this later to support for than 32 textures) https://www.reddit.com/r/opengl/comments/o4iryb/32_texture_limit/
 
     for (auto i : std::filesystem::directory_iterator("resources/textures"))
     {
@@ -167,8 +178,7 @@ int main(void)
         {
             textureArray.push_back(loadTexture(i.path().string().c_str()));
             std::cout << i << " - " << textureArray.size() << std::endl;
-            glActiveTexture(GL_TEXTURE0 + fileCount + 1);
-            glBindTexture(GL_TEXTURE_2D, textureArray[fileCount]);
+            
             fileCount++;
         }
     }
@@ -189,45 +199,23 @@ int main(void)
     ██   ██ ███████ ██   ████ ██████  ███████ ██   ██ ██ ██   ████  ██████
     */
 
-    regularShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
-
-    lightShader.setMatrix4fv("transform", 1, GL_FALSE, glm::value_ptr(trans));
-    // 1. The uniform's location
-    // 2. How many matrices are being sent
-    // 3. If the matrix should be transposed (not with GLM)
-    // 4. The matrix data (convert with glm::value_ptr because we're using GLM and OpenGL)
-
-    // Get the camera pos, forward, up, and right (up and cameraUp are not the same)
-
-    // Create the perspective projection
-    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-    regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+    // Get the camera pos, forward, up, and right (up and cameraUp are not the same, up is the vector that is up on the camera and cameraUp is the world's up)
 
     add_object(currentIDNumber, "floor", cubeObj, false);
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
-    add_object(currentIDNumber, "box", cubeObj, false);
+    add_object(currentIDNumber, "box", skull, false);
 
-    for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
-    {
-        if (objects[n].enabled == false)
-        {
-            continue;
-        }
-        gui newGui;
-        newGui.id = n;
-        newGui.visible = false;
-        guisVisible.push_back(newGui);
-    }
+    // Create the perspective projection
+    glm::mat4 proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+    regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+
 
     // Blending for transparent textures
     glEnable(GL_BLEND);  
 
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-
-    // Cull faces that aren't visible
-    glEnable(GL_CULL_FACE);
 
     // Frame buffer https://learnopengl.com/Advanced-OpenGL/Framebuffers
 
@@ -244,8 +232,8 @@ int main(void)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     screenShader.use();
-    screenShader.setInt("screenShader", 16);
-    screenShader.setInt("depthMap", 16);
+    screenShader.setInt("screenShader", 30);
+    screenShader.setInt("depthMap", 30);
 
     // Frame buffer for full screen shaders
     
@@ -361,19 +349,58 @@ int main(void)
         
         screenShader.use();
         screenShader.setInt("shader", currentShader);
-        screenShader.setInt("screenTexture", 16);
-        screenShader.setInt("depthMap", 17);
+        screenShader.setInt("screenTexture", 30);
+        screenShader.setInt("depthMap", 31);
 
         regularShader.use();
-        regularShader.setInt("shadowMap", 17);
+        regularShader.setInt("shadowMap", 31);
         regularShader.setMatrix4fv("lightSpaceMatrix", 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
         
         glBindVertexArray(quadVAO);
-        glActiveTexture(GL_TEXTURE17);
+        glActiveTexture(GL_TEXTURE31);
         glBindTexture(GL_TEXTURE_2D, depthMap);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // First pass
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
         
         render(regularShader, lightShader, depthShader, screenShader);
+
+        int currentWeapon = playerInstance.weaponID;
+
+        if (currentWeapon + 1 <= weapons.size() && currentWeapon >= 0) // One weapon would mean size 1 but position 0
+        {
+            renderWeapon(regularShader, lightShader, depthShader, screenShader, currentWeapon);
+        }
+        else
+        {
+            if (currentWeapon + 1 > weapons.size()) // Incase the current weapon is somehow out of range
+            {
+                playerInstance.weaponID = weapons.size() - 1;
+            }
+            if (currentWeapon < 0)
+            {
+                playerInstance.weaponID = 0;
+            }
+
+            std::cout << error("Current weapon index out of range") << std::endl;
+        }
+
+        // Second pass
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        screenShader.use();
+        screenShader.setInt("shader", currentShader);
+        glBindVertexArray(quadVAO);
+        glActiveTexture(GL_TEXTURE30);
+        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // Render gui
         renderGui(window, regularShader);

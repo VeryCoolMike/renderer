@@ -43,13 +43,6 @@ extern player playerInstance;
 
 void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader screenShader)
 {
-
-    // First pass
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
-
     proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
 
     lightShader.use();
@@ -82,6 +75,10 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
         }
         const auto &obj = objects[i];
 
+        // Textures
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureArray[obj.texture]);
+
         // Transformations
         model = glm::mat4(1.0f);
         model = glm::translate(model, obj.transform.pos);
@@ -106,7 +103,7 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
             }
             lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
 
-            lightShader.setInt("currentTexture", obj.texture);
+            lightShader.setInt("currentTexture", 1);
         }
         else
         {
@@ -114,7 +111,7 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
             
             regularShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
             regularShader.setBool("selected", obj.selected);
-            regularShader.setInt("currentTexture", obj.texture);
+            regularShader.setInt("currentTexture", 1);
             regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
         }
 
@@ -122,61 +119,6 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
 
         glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
     }
-
-    // Draw viewmodel
-
-    // Culling removes faces that are visible for some reason
-    glDisable(GL_CULL_FACE);
-
-    // Disable despth testing causes strange issues
-    regularShader.use();
-    // Assuming that the weapon exists, add error checking!
-    int currentWeapon = playerInstance.weaponID;
-
-    if (currentWeapon + 1 <= weapons.size() && currentWeapon >= 0) // One weapon would mean size 1 but position 0
-    {
-        regularShader.setInt("currentTexture", weapons[currentWeapon].texture);
-
-        regularShader.setBool("selected", false);
-        regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-        regularShader.setFloat3("objectColor", weapons[currentWeapon].objectColor[0], weapons[currentWeapon].objectColor[1], weapons[currentWeapon].objectColor[2]);
-        regularShader.setBool("fullBright", fullBright);
-        regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
-
-        glBindVertexArray(weapons[currentWeapon].VAO);
-
-        // Transformations
-        weapons[currentWeapon].transform.pos = cameraPos + weapons[currentWeapon].offset.pos;
-        weapons[currentWeapon].transform.rot.y = -yaw;
-        weapons[currentWeapon].transform.rot.z = pitch;
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, cameraPos); // Make it go to camerapos
-        model = glm::scale(model, glm::vec3(weapons[currentWeapon].transform.scale));
-        glm::vec3 angle = weapons[currentWeapon].transform.rot;
-        model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::translate(model, weapons[currentWeapon].offset.pos);
-
-        regularShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
-
-        glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
-    }
-    else
-    {
-        if (currentWeapon + 1 > weapons.size()) // Get out of errors
-        {
-            playerInstance.weaponID = weapons.size() - 1;
-        }
-        if (currentWeapon < 0)
-        {
-            playerInstance.weaponID = 0;
-        }
-
-        std::cout << error("Current weapon index out of range") << std::endl;
-    }
-
-    glEnable(GL_CULL_FACE);
 
     // Needs to be here for some reason or light vertex shader will stop working?????
     lightShader.use();
@@ -198,20 +140,42 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
 
     regularShader.setFloat("ambientStrength", ambientintensity);
 
-    // Second pass
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_DEPTH_TEST);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    
+}
 
-    screenShader.use();
-    screenShader.setInt("shader", currentShader);
-    //screenShader.setInt("width", currentWidth / SCR_WIDTH);
-    //screenShader.setInt("height", currentHeight / SCR_HEIGHT);
-    glBindVertexArray(quadVAO);
-    glActiveTexture(GL_TEXTURE16);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+void renderWeapon(Shader regularShader, Shader lightShader, Shader depthShader, Shader screenShader, int currentWeapon)
+{
+    regularShader.use();
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, weapons[currentWeapon].texture + 1); // Need the +1 for whatever reason because its being offseted somewhere somehow
+
+    regularShader.setInt("currentTexture", 2);
+
+    regularShader.setBool("selected", false);
+    regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+    regularShader.setFloat3("objectColor", weapons[currentWeapon].objectColor[0], weapons[currentWeapon].objectColor[1], weapons[currentWeapon].objectColor[2]);
+    regularShader.setBool("fullBright", fullBright);
+    regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
+
+    glBindVertexArray(weapons[currentWeapon].VAO);
+
+    // Transformations
+    weapons[currentWeapon].transform.pos = cameraPos + weapons[currentWeapon].offset.pos;
+    weapons[currentWeapon].transform.rot.y = -yaw;
+    weapons[currentWeapon].transform.rot.z = pitch;
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, cameraPos); // Make it go to camerapos
+    model = glm::scale(model, glm::vec3(weapons[currentWeapon].transform.scale));
+    glm::vec3 angle = weapons[currentWeapon].transform.rot;
+    model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    model = glm::translate(model, weapons[currentWeapon].offset.pos);
+
+    regularShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
+
+    glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
 }
 
 void renderDepth(Shader depthShader, Shader screenShader)

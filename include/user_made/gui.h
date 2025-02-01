@@ -85,7 +85,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
             objects.clear();
             regularShader.setInt("lightAmount", LoadFromFile(mapFileName)); // Load from MapFile1.txt
 
-            for (int n = 0; n < objects.size(); ++n) // Use objects.size() instead of currentIDNumber
+            for (int n = 0; n < objects.size(); ++n)
             {
                 if (objects[n].enabled == false)
                 {
@@ -174,73 +174,72 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                 }
             }
 
-            try // Segmentation fault :(
+        }
+
+        for (int i = 0; i < guisVisible.size(); i++)
+        {
+            if (guisVisible[i].visible)
             {
-                if (guisVisible[n].visible)
+                ImGui::Begin(objects[guisVisible[i].id].name.c_str()); // Start the ImGui window
+                for (int i = 0; i < fileCount; i++)
                 {
-                    ImGui::Begin(objects[n].name.c_str()); // Start the ImGui window
-                    for (int i = 0; i < fileCount; i++)
+                    ImGui::PushID(i);
+                    if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0, 0))) // 0 for no padding
                     {
-                        ImGui::PushID(i);
-                        if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0, 0))) // 0 for no padding
-                        {
-                            objects[n].texture = i;
-                        }
-                        if (i % 10 != 0 || i == 0)
-                        {
-                            ImGui::SameLine();
-                        }
-                        else
-                        {
-                            ImGui::NewLine();
-                        }
-
-                        ImGui::PopID();
+                        objects[guisVisible[i].id].texture = i;
                     }
-                    ImGui::NewLine();
-                    ImGui::SetNextItemWidth(150.0f);
-                    ImGui::Checkbox("Visible", &objects[n].visible);
-                    ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[n].objectColor));
-                    ImGui::InputFloat3("Position", &objects[n].transform.pos.x);
-                    ImGui::InputFloat3("Rotation", &objects[n].transform.rot.x);
-                    ImGui::InputFloat3("Scale", &objects[n].transform.scale.x);
-                    if (objects[n].light == true)
+                    if (i % 10 != 0 || i == 0)
                     {
-                        for (int j = 0; j < lightArray.size(); j++)
-                        {
-                            if (lightArray[j].id == objects[n].id)
-                            {
-                                ImGui::InputFloat("Light Strength", &lightArray[j].strength);
-                            }
-                        }
-                        
+                        ImGui::SameLine();
                     }
-                    if (ImGui::Button("Delete"))
+                    else
                     {
-                        // Remove the object at index n
-                        remove_object(n);
+                        ImGui::NewLine();
                     }
 
-                    if (ImGui::Button("cube"))
-                    {
-                        updateVertices(cubeObj, objects[n]);
-                    }
-                    if (ImGui::Button("skull"))
-                    {
-                        updateVertices(skull, objects[n]);
-                    }
-                    if (ImGui::Button("gun"))
-                    {
-                        updateVertices(dbShotgun, objects[n]);
-                    }
-                    ImGui::End(); // End the ImGui window
+                    ImGui::PopID();
                 }
-            }
-            catch (const std::exception &e)
-            {
-                std::cerr << "Error: " << e.what() << '\n';
+                ImGui::NewLine();
+                ImGui::SetNextItemWidth(150.0f);
+                ImGui::Checkbox("Visible", &objects[guisVisible[i].id].visible);
+                ImGui::ColorPicker3("Object Color", glm::value_ptr(objects[guisVisible[i].id].objectColor));
+                ImGui::InputFloat3("Position", &objects[guisVisible[i].id].transform.pos.x);
+                ImGui::InputFloat3("Rotation", &objects[guisVisible[i].id].transform.rot.x);
+                ImGui::InputFloat3("Scale", &objects[guisVisible[i].id].transform.scale.x);
+                ImGui::InputFloat("Reflectance", &objects[guisVisible[i].id].reflectance);
+                if (objects[guisVisible[i].id].light == true)
+                {
+                    for (int j = 0; j < lightArray.size(); j++)
+                    {
+                        if (lightArray[j].id == objects[guisVisible[i].id].id)
+                        {
+                            ImGui::InputFloat("Light Strength", &lightArray[j].strength);
+                        }
+                    }
+                    
+                }
+                if (ImGui::Button("Delete"))
+                {
+                    // Remove the object at index n
+                    remove_object(guisVisible[i].id);
+                }
+
+                if (ImGui::Button("cube"))
+                {
+                    updateVertices(cubeObj, objects[guisVisible[i].id]);
+                }
+                if (ImGui::Button("skull"))
+                {
+                    updateVertices(skull, objects[guisVisible[i].id]);
+                }
+                if (ImGui::Button("gun"))
+                {
+                    updateVertices(dbShotgun, objects[guisVisible[i].id]);
+                }
+                ImGui::End(); // End the ImGui window
             }
         }
+        
 
         ImGui::End();
 

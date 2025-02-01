@@ -47,6 +47,7 @@ struct object
     unsigned int shader;
     bool light;
     unsigned int texture = 1;
+    float reflectance = 0.0f;
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
     bool visible = true; // Make the object completely visible or invisible (rendered / not rendered)
     bool selected = false;
@@ -86,6 +87,13 @@ struct weapon // Later add ammo, and other customizations
     bool shotgun = false;
     int pellets = 10;
     float spread = 7.5f; // Spread (radius of circle, not diameter)
+
+    // Grenade launcher
+    bool grenadeLauncher = false;
+    float strength = 3.0f;
+
+    // General
+    bool explosive = false;
 };
 
 std::vector<weapon> weapons;
