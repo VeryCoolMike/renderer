@@ -113,15 +113,6 @@ int main(void)
     createWeapon(dbShotgun, "Shotgun", 8);
     weapons.back().shotgun = true;
 
-    if (weapons.back().temp_data == convertGLMToOpenGLFLoat(dbShotgun))
-    {
-        std::cout << "Correct" << std::endl;
-    }
-    else
-    {
-        std::cout << "Incorrect" << std::endl;
-    }
-
     /*
     ███████ ██   ██  █████  ██████  ███████ ██████  ███████
     ██      ██   ██ ██   ██ ██   ██ ██      ██   ██ ██
@@ -131,7 +122,7 @@ int main(void)
     ANSI REGULAR FOR LARGE COMMENTS
     */
     Shader lightShader("shaders/lights.vs", "shaders/lights.fs");
-    Shader regularShader("shaders/regular.vs", "shaders/regular.fs");
+    Shader regularShader("shaders/regular.vs", "shaders/regular.fs", "shaders/regular.gs");
     Shader screenShader("shaders/screenShader.vs", "shaders/screenShader.fs");
     Shader depthShader("shaders/depthShader.vs", "shaders/depthShader.fs");
     Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
