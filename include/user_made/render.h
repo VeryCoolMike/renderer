@@ -18,6 +18,9 @@ glm::mat4 proj;
 extern glm::mat4 view;
 glm::mat4 model;
 
+unsigned int skyboxVAO;
+unsigned int skyboxVBO;
+
 extern unsigned int textureColorbuffer;
 extern unsigned int framebuffer;
 extern unsigned int rbo;
@@ -25,8 +28,6 @@ extern unsigned int rbo;
 extern unsigned int depthMapFBO;
 
 extern glm::vec3 cameraPos;
-
-extern bool fullBright;
 
 extern int currentShader;
 
@@ -63,8 +64,7 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
     }
 
     regularShader.setInt("lightAmount", lightArray.size()); // Me when no access to regular shader :moyai:
-    regularShader.setBool("fullBright", fullBright);
-    regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
+    regularShader.setFloat("ambientStrength", ambientintensity);
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
     for (unsigned int i = 0; i < objects.size(); i++)
@@ -113,6 +113,7 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
             regularShader.setBool("selected", obj.selected);
             regularShader.setInt("currentTexture", 1);
             regularShader.setFloat3("objectColor", obj.objectColor[0], obj.objectColor[1], obj.objectColor[2]);
+            regularShader.setFloat("reflectancy", obj.reflectance); // Adjust this value as needed
         }
 
         glBindVertexArray(objects[i].VAO);
@@ -155,8 +156,8 @@ void renderWeapon(Shader regularShader, Shader lightShader, Shader depthShader, 
     regularShader.setBool("selected", false);
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
     regularShader.setFloat3("objectColor", weapons[currentWeapon].objectColor[0], weapons[currentWeapon].objectColor[1], weapons[currentWeapon].objectColor[2]);
-    regularShader.setBool("fullBright", fullBright);
     regularShader.setFloat("ambientStrength", ambientintensity); // Adjust this value as needed
+    regularShader.setFloat("reflectancy", 0.0f); // Adjust this value as needed
 
     glBindVertexArray(weapons[currentWeapon].VAO);
 
@@ -213,6 +214,79 @@ void renderDepth(Shader depthShader, Shader screenShader)
 
         glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
     }
+}
+
+void createSkybox()
+{
+    std::vector<float> skyboxVertices = {
+        // positions          
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f
+    };
+
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+
+    glBufferData(GL_ARRAY_BUFFER, skyboxVertices.size() * sizeof(float), skyboxVertices.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+}
+
+void renderSkybox(Shader skyboxShader, unsigned int cubeMapTexture)
+{
+    glDepthFunc(GL_LEQUAL);
+    skyboxShader.use();
+    skyboxShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(glm::mat4(glm::mat3(glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp))))); // Oh the misery
+    skyboxShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+
+    glBindVertexArray(skyboxVAO);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDepthFunc(GL_LESS);
 }
 
 #endif // RENDER_H

@@ -134,6 +134,7 @@ int main(void)
     Shader regularShader("shaders/regular.vs", "shaders/regular.fs");
     Shader screenShader("shaders/screenShader.vs", "shaders/screenShader.fs");
     Shader depthShader("shaders/depthShader.vs", "shaders/depthShader.fs");
+    Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
 
     regularShader.use();
 
@@ -184,11 +185,33 @@ int main(void)
     }
     printf("%i textures found!\n", fileCount);
 
+    // Load skybox
+    std::vector<std::string> faces
+    {
+        "resources/skybox/right.jpg",
+        "resources/skybox/left.jpg",
+        "resources/skybox/top.jpg",
+        "resources/skybox/bottom.jpg",
+        "resources/skybox/front.jpg",
+        "resources/skybox/back.jpg"
+    };
+
+    stbi_set_flip_vertically_on_load(false);
+
+    unsigned int cubeMapTexture = loadCubeMap(faces);
+    
+    std::cout << cubeMapTexture << " texture" << std::endl;
+
+    skyboxShader.use();
+    skyboxShader.setInt("skybox", 3);
+    regularShader.use();
+
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetKeyCallback(window, key_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
+    createSkybox();
     createGui(window);
 
     /*
@@ -366,9 +389,10 @@ int main(void)
         glEnable(GL_DEPTH_TEST);
         glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
-        
+
         render(regularShader, lightShader, depthShader, screenShader);
 
+        // Weapons
         int currentWeapon = playerInstance.weaponID;
 
         if (currentWeapon + 1 <= weapons.size() && currentWeapon >= 0) // One weapon would mean size 1 but position 0
@@ -388,6 +412,8 @@ int main(void)
 
             std::cout << error("Current weapon index out of range") << std::endl;
         }
+
+        renderSkybox(skyboxShader, cubeMapTexture);
 
         // Second pass
         glBindFramebuffer(GL_FRAMEBUFFER, 0);

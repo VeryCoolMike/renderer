@@ -21,11 +21,12 @@ uniform sampler2D shadowMap;
 #define MAX_LIGHTS 500
 
 uniform sampler2D currentTexture;
+uniform samplerCube skybox;
 uniform vec3 objectColor;
 uniform float ambientStrength;
 uniform vec3 viewPos;
-uniform bool fullBright;
 uniform bool selected;
+uniform float reflectancy;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
@@ -99,16 +100,10 @@ void main()
         }
     }
 
-    
-    
-    if (fullBright)
-    {
-        FragColor = texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0) + vec4(1.0);
-    }
-    else
-    {
-        FragColor = texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0);
-    }
+    vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
+    vec3 R = reflect(I, normalize(fs_in.Normal));
+
+    FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
 
     if (selected == true)
     {
