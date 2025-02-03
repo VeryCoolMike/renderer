@@ -26,6 +26,7 @@ extern unsigned int framebuffer;
 extern unsigned int rbo;
 
 extern unsigned int depthMapFBO;
+extern unsigned int depthCubeMap;
 
 extern glm::vec3 cameraPos;
 
@@ -44,6 +45,7 @@ extern player playerInstance;
 
 void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader screenShader)
 {
+
     proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
 
     lightShader.use();
@@ -59,13 +61,14 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
         std::string uniformName = "pointLights[" + std::to_string(i) + "]";
         regularShader.setFloat3(uniformName + ".position", lightArray[i].pos.x, lightArray[i].pos.y, lightArray[i].pos.z);
         regularShader.setBool(uniformName + ".enabled", lightArray[i].enabled);
-        regularShader.setFloat3(uniformName + ".color", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]);
+        regularShader.setFloat3(uniformName + ".color", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]); // For some reason red
         regularShader.setFloat(uniformName + ".strength", lightArray[i].strength);
     }
 
     regularShader.setInt("lightAmount", lightArray.size()); // Me when no access to regular shader :moyai:
     regularShader.setFloat("ambientStrength", ambientintensity);
     regularShader.setFloat3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+    regularShader.setInt("skybox", 3);
 
     for (unsigned int i = 0; i < objects.size(); i++)
     {

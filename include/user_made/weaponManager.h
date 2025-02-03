@@ -81,6 +81,18 @@ void fireWeapon(bool debug)
         if (gunRay.valid == true)
         {
             std::cout << "Valid! Hit: " << gunRay.hit.name << std::endl;
+            if (debug == true)
+            {
+                float random0 = (rand() % 101) / 100.0f;
+                float random1 = (rand() % 101) / 100.0f;
+                float random2 = (rand() % 101) / 100.0f;
+                add_object(currentIDNumber, "test", cubeObj, true);
+                objects.back().transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
+                objects.back().transform.pos = gunRay.pos;
+                objects.back().objectColor = glm::vec3(random0, random1, random2);
+
+                lightArray.back().strength = 1.0f;
+            }
         }
         else
         {

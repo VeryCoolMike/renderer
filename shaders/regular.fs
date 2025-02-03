@@ -13,10 +13,9 @@ in VS_OUT
     vec3 FragPos;
     vec3 Normal;
     vec2 TexCoord;
-    vec4 FragPosLightSpace;
 } fs_in;
 
-uniform sampler2D shadowMap;
+uniform samplerCube shadowMap;
 
 #define MAX_LIGHTS 500
 
@@ -27,36 +26,11 @@ uniform float ambientStrength;
 uniform vec3 viewPos;
 uniform bool selected;
 uniform float reflectancy;
+uniform vec3 lightPos;
+uniform float far_plane;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
-
-float shadowCalculation(vec4 FragPosLightSpace)
-{
-    vec3 projCoords = FragPosLightSpace.xyz / FragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(shadowMap, projCoords.xy).r;
-    float currentDepth = projCoords.z;
-    float bias = 0.005f;
-    float shadow = 0.0f;
-    vec2 texelSize = 1.0f / textureSize(shadowMap, 0);
-    for (int x = -1; x <= 1; x++)
-    {
-        for (int y = -1; y <= 1; y++)
-        {
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
-        }
-    }
-    shadow /= 9.0;
-    
-    if (projCoords.z > 1.0f)
-    {
-        shadow = 0.0f;
-    }
-
-    return shadow;
-}
 
 vec3 calcPointLight(PointLight light)
 {
@@ -81,12 +55,9 @@ vec3 calcPointLight(PointLight light)
     diffuse *= attenuation;
     specular *= attenuation;
 
+    float shadow = texture(shadowMap, fs_in.FragPos - lightPos).r < 0.3 ? 1.0 : 0.0; // Magic wizardry, How does this work, I don't know (taken from learnopengl, this shouldnt work but does)
 
-    float shadow = shadowCalculation(fs_in.FragPosLightSpace);
-
-    
-    
-    return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor; 
+    return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
 }
 
 void main()
@@ -100,8 +71,11 @@ void main()
         }
     }
 
+
     vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
     vec3 R = reflect(I, normalize(fs_in.Normal));
+
+
 
     FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
 
