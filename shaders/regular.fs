@@ -1,4 +1,4 @@
-#version 330 core
+#version 400 core
 out vec4 FragColor;
 
 struct PointLight {
@@ -15,9 +15,9 @@ in VS_OUT
     vec2 TexCoord;
 } fs_in;
 
-uniform samplerCube shadowMap;
-
 #define MAX_LIGHTS 500
+
+uniform samplerCube shadowMap;
 
 uniform sampler2D currentTexture;
 uniform samplerCube skybox;
@@ -31,6 +31,40 @@ uniform float far_plane;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
+
+vec3 gridSamplingDisk[20] = vec3[]
+(
+   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
+   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+);
+
+float ShadowCalculation(vec3 fragPos, samplerCube depthMap)
+{
+    vec3 fragToLight = fragPos - lightPos;
+    float closestDepth = texture(depthMap, fragToLight).r;
+    closestDepth *= far_plane;
+    float currentDepth = length(fragToLight);
+    float bias = 0.15f;
+    float shadow = 0.0f;
+    int samples = 20;
+    float viewDistance = length(viewPos - fragPos);
+    float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
+    for (int i = 0; i < samples; i++)
+    {
+        float closestDepth = texture(depthMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        closestDepth *= far_plane;
+        if (currentDepth - bias > closestDepth)
+        {
+            shadow += 1.0f;
+        }
+    }
+    shadow /= float(samples);
+        
+    return shadow;
+}
 
 vec3 calcPointLight(PointLight light)
 {
@@ -55,7 +89,8 @@ vec3 calcPointLight(PointLight light)
     diffuse *= attenuation;
     specular *= attenuation;
 
-    float shadow = texture(shadowMap, fs_in.FragPos - lightPos).r < 0.3 ? 1.0 : 0.0; // Magic wizardry, How does this work, I don't know (taken from learnopengl, this shouldnt work but does)
+    float shadow = ShadowCalculation(fs_in.FragPos, shadowMap);
+    
 
     return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
 }
@@ -78,6 +113,8 @@ void main()
 
 
     FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
+    //float depth = length(fs_in.FragPos - lightPos);
+    //FragColor = vec4(vec3(depth / (far_plane)), 1.0);
 
     if (selected == true)
     {

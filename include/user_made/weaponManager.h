@@ -89,9 +89,9 @@ void fireWeapon(bool debug)
                 add_object(currentIDNumber, "test", cubeObj, true);
                 objects.back().transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
                 objects.back().transform.pos = gunRay.pos;
-                objects.back().objectColor = glm::vec3(random0, random1, random2);
+                objects.back().objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
-                lightArray.back().strength = 1.0f;
+                lightArray.back().strength = 2.0f;
             }
         }
         else

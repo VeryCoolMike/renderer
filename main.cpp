@@ -395,6 +395,7 @@ int main(void)
         regularShader.use();
         regularShader.setInt("shadowMap", 31);
         regularShader.setFloat3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+        regularShader.setFloat("far_plane", far_plane);
         
         glActiveTexture(GL_TEXTURE31);
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
