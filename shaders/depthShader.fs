@@ -1,12 +1,15 @@
 #version 330 core
 in vec4 FragPos;
 
-uniform vec3 lightPos;
+#define MAX_SHADOWS 5
+
+uniform vec3 lightPos[MAX_SHADOWS];
 uniform float far_plane;
+uniform int shadow;
 
 void main()
 {
-   float lightDistance = length(FragPos.xyz - lightPos);
+   float lightDistance = length(FragPos.xyz - lightPos[shadow]);
 
    lightDistance = lightDistance / far_plane;
 

@@ -75,5 +75,6 @@
         "mutex": "cpp",
         "stop_token": "cpp",
         "thread": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/home/michaelreznik/Documents/github/renderer/include/glm"
 }

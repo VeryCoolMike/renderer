@@ -25,8 +25,8 @@ extern unsigned int textureColorbuffer;
 extern unsigned int framebuffer;
 extern unsigned int rbo;
 
-extern unsigned int depthMapFBO;
-extern unsigned int depthCubeMap;
+extern unsigned int depthMapFBOs[5];
+extern unsigned int depthCubeMaps[5];
 
 extern glm::vec3 cameraPos;
 
@@ -182,10 +182,10 @@ void renderWeapon(Shader regularShader, Shader lightShader, Shader depthShader, 
     glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
 }
 
-void renderDepth(Shader depthShader, Shader screenShader)
+void renderDepth(Shader depthShader, Shader screenShader, int currentMap)
 {
     // First pass
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[currentMap]);
     glEnable(GL_DEPTH_TEST);
     glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers

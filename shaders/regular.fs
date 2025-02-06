@@ -16,8 +16,10 @@ in VS_OUT
 } fs_in;
 
 #define MAX_LIGHTS 500
+#define MAX_SHADOWS 5
 
-uniform samplerCube shadowMap;
+uniform samplerCube shadowMap[MAX_SHADOWS];
+uniform vec3 lightPos[MAX_SHADOWS];
 
 uniform sampler2D currentTexture;
 uniform samplerCube skybox;
@@ -26,7 +28,6 @@ uniform float ambientStrength;
 uniform vec3 viewPos;
 uniform bool selected;
 uniform float reflectancy;
-uniform vec3 lightPos;
 uniform float far_plane;
 
 uniform int lightAmount;
@@ -41,20 +42,21 @@ vec3 gridSamplingDisk[20] = vec3[]
    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
 );
 
-float ShadowCalculation(vec3 fragPos, samplerCube depthMap)
+float ShadowCalculation(vec3 fragPos, int id)
 {
-    vec3 fragToLight = fragPos - lightPos;
-    float closestDepth = texture(depthMap, fragToLight).r;
+    vec3 fragToLight = fragPos - lightPos[id];
+    float closestDepth = texture(shadowMap[id], fragToLight).r;
     closestDepth *= far_plane;
     float currentDepth = length(fragToLight);
     float bias = 0.15f;
-    float shadow = 0.0f;
-    int samples = 20;
+
     float viewDistance = length(viewPos - fragPos);
+    float shadow = 0.0f;
+    int samples = (viewDistance < far_plane * 0.5) ? 20 : 10;
     float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
     for (int i = 0; i < samples; i++)
     {
-        float closestDepth = texture(depthMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        float closestDepth = texture(shadowMap[id], fragToLight + gridSamplingDisk[i] * diskRadius).r;
         closestDepth *= far_plane;
         if (currentDepth - bias > closestDepth)
         {
@@ -68,7 +70,7 @@ float ShadowCalculation(vec3 fragPos, samplerCube depthMap)
 
 vec3 calcPointLight(PointLight light)
 {
-    float distance = length(light.position - fs_in.FragPos);
+    mediump float distance = length(light.position - fs_in.FragPos);
     vec3 norm = normalize(fs_in.Normal);
     vec3 lightDir = normalize(light.position - fs_in.FragPos);
     vec3 viewDir = normalize(viewPos - fs_in.FragPos);
@@ -83,15 +85,19 @@ vec3 calcPointLight(PointLight light)
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * light.color;
     
-    float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * (distance * distance));
+    mediump float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * (distance * distance));
     
     ambient *= attenuation;
     diffuse *= attenuation;
     specular *= attenuation;
 
-    float shadow = ShadowCalculation(fs_in.FragPos, shadowMap);
-    
+    mediump float shadow = 0.0f;
 
+    shadow += ShadowCalculation(fs_in.FragPos, 0);
+    shadow += ShadowCalculation(fs_in.FragPos, 1);
+    shadow += ShadowCalculation(fs_in.FragPos, 2);
+
+    
     return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
 }
 
@@ -107,12 +113,22 @@ void main()
     }
 
 
-    vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
-    vec3 R = reflect(I, normalize(fs_in.Normal));
+    if (reflectancy > 0.0)
+    {
+        vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
+        vec3 R = reflect(I, normalize(fs_in.Normal));
+
+        FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
+    }
+    else
+    {
+        FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0));
+    }
+    
 
 
 
-    FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
+    
     //float depth = length(fs_in.FragPos - lightPos);
     //FragColor = vec4(vec3(depth / (far_plane)), 1.0);
 

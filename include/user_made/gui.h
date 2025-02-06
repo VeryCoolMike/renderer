@@ -31,6 +31,8 @@ extern bool firstMouse;
 
 extern int currentShader;
 
+extern int shadowTexture;
+
 void createGui(GLFWwindow *window)
 {
     IMGUI_CHECKVERSION();
@@ -115,6 +117,9 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         ImGui::InputFloat("Ambient Strength", &ambientintensity, 0.05f);
         ImGui::ColorPicker4("Background Color", backgroundColor);
         ImGui::InputInt("Current Shader", &currentShader);
+
+        ImGui::Text("DEBUG");
+        ImGui::InputInt("Current shadow texture", &shadowTexture);
 
         ImGui::NewLine();
         ImGui::Text("Browser");
@@ -207,6 +212,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                 ImGui::InputFloat3("Rotation", &objects[guisVisible[i].id].transform.rot.x);
                 ImGui::InputFloat3("Scale", &objects[guisVisible[i].id].transform.scale.x);
                 ImGui::InputFloat("Reflectance", &objects[guisVisible[i].id].reflectance);
+
                 if (objects[guisVisible[i].id].light == true)
                 {
                     for (int j = 0; j < lightArray.size(); j++)
