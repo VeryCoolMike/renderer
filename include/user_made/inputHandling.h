@@ -18,16 +18,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
 
-// Camera stuff
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
-
-glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, 0.0f);
-
 bool gui_visible = false;
 
 bool line_drawing = false;
@@ -100,6 +90,16 @@ extern unsigned int rbo;
 
 extern int currentWidth;
 extern int currentHeight;
+
+// Camera
+extern glm::vec3 cameraPos;
+extern glm::vec3 cameraTarget;
+extern glm::vec3 cameraDirection;
+
+extern glm::vec3 up;
+extern glm::vec3 cameraRight;
+extern glm::vec3 cameraUp;
+extern glm::vec3 cameraFront;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {

@@ -52,6 +52,7 @@ struct object
     bool visible = true; // Make the object completely visible or invisible (rendered / not rendered)
     bool selected = false;
     bool canCollide = true;
+    bool dynamic = false;
     std::vector<float> temp_data; // Used for OpenGL to correctly parse my custom way of saving objects
     unsigned int VAO;
     unsigned int VBO;
@@ -70,6 +71,7 @@ struct weapon // Later add ammo, and other customizations
         glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
     } transform;
+
     struct
     {
         glm::vec3 pos = glm::vec3(1.0f, -1.5f, 0.25f);
@@ -90,7 +92,7 @@ struct weapon // Later add ammo, and other customizations
 
     // Grenade launcher
     bool grenadeLauncher = false;
-    float strength = 3.0f;
+    float velocityStrength = 3.0f;
 
     // General
     bool explosive = false;
@@ -106,6 +108,10 @@ struct light // This truly is an ECS
     bool enabled = true;
     bool selected = false;
     float strength = 1.0f;
+
+    // Shadows
+    bool castShadow = true;
+    int shadowID;
 };
 
 std::vector<light> lightArray;

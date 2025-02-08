@@ -1,12 +1,16 @@
 #version 400 core
 out vec4 FragColor;
 
-struct PointLight {
+struct PointLight
+{
     vec3 position;
     vec3 color;
     bool enabled;
+    bool castShadow;
+    int shadowID;
     float strength;
 };
+
 
 in VS_OUT
 {
@@ -29,6 +33,7 @@ uniform vec3 viewPos;
 uniform bool selected;
 uniform float reflectancy;
 uniform float far_plane;
+uniform bool shadowsEnabled;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
@@ -45,9 +50,13 @@ vec3 gridSamplingDisk[20] = vec3[]
 float ShadowCalculation(vec3 fragPos, int id)
 {
     vec3 fragToLight = fragPos - lightPos[id];
+    float currentDepth = length(fragToLight);
+    if (currentDepth >= far_plane)
+    {
+        return 0.0;
+    }
     float closestDepth = texture(shadowMap[id], fragToLight).r;
     closestDepth *= far_plane;
-    float currentDepth = length(fragToLight);
     float bias = 0.15f;
 
     float viewDistance = length(viewPos - fragPos);
@@ -91,11 +100,19 @@ vec3 calcPointLight(PointLight light)
     diffuse *= attenuation;
     specular *= attenuation;
 
-    mediump float shadow = 0.0f;
+    float shadow = 0.0f;
 
-    shadow += ShadowCalculation(fs_in.FragPos, 0);
-    shadow += ShadowCalculation(fs_in.FragPos, 1);
-    shadow += ShadowCalculation(fs_in.FragPos, 2);
+    if (shadowsEnabled == true)
+    {
+        if (light.castShadow == true)
+        {
+            shadow += ShadowCalculation(fs_in.FragPos, light.shadowID);
+        }
+    }
+
+    
+    //shadow += ShadowCalculation(fs_in.FragPos, 1);
+    //shadow += ShadowCalculation(fs_in.FragPos, 2);
 
     
     return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;

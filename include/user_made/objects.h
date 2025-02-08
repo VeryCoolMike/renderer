@@ -2,6 +2,7 @@
 #define OBJECTS_H
 
 #include "structs.h"
+#include "render.h"
 
 #include <stdio.h>
 

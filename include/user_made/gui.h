@@ -33,6 +33,8 @@ extern int currentShader;
 
 extern int shadowTexture;
 
+extern bool shadowsEnabled;
+
 void createGui(GLFWwindow *window)
 {
     IMGUI_CHECKVERSION();
@@ -98,6 +100,8 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                 newGui.visible = false;
                 guisVisible.push_back(newGui);
             }
+
+            updateStaticShadows();
         }
 
         if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
@@ -120,6 +124,11 @@ void renderGui(GLFWwindow *window, Shader regularShader)
 
         ImGui::Text("DEBUG");
         ImGui::InputInt("Current shadow texture", &shadowTexture);
+        if (ImGui::Button("Refresh static shadows"))
+        {
+            updateStaticShadows();
+        }
+        ImGui::Checkbox("Shadows enabled", &shadowsEnabled);
 
         ImGui::NewLine();
         ImGui::Text("Browser");

@@ -8,7 +8,8 @@
 #include "shader.h"
 #include "structs.h"
 #include "helper.h"
-#include "objects.h"
+
+
 
 float ambientintensity = 0.1f;
 
@@ -43,7 +44,35 @@ extern float pitch;
 
 extern player playerInstance;
 
-void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader screenShader)
+extern std::vector<glm::vec3> lightPos;
+
+extern std::vector<GLuint> textureArray;
+
+extern bool shadowsEnabled;
+
+extern int currentWidth;
+extern int currentHeight;
+
+// Shaders
+extern Shader lightShader;
+extern Shader regularShader;
+extern Shader screenShader;
+extern Shader depthShader;
+extern Shader skyboxShader;
+
+
+// Camera
+extern glm::vec3 cameraPos;
+extern glm::vec3 cameraTarget;
+extern glm::vec3 cameraDirection;
+
+extern glm::vec3 up;
+extern glm::vec3 cameraRight;
+extern glm::vec3 cameraUp;
+extern glm::vec3 cameraFront;
+
+
+void render()
 {
 
     proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
@@ -63,7 +92,15 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
         regularShader.setBool(uniformName + ".enabled", lightArray[i].enabled);
         regularShader.setFloat3(uniformName + ".color", lightArray[i].color[0], lightArray[i].color[1], lightArray[i].color[2]); // For some reason red
         regularShader.setFloat(uniformName + ".strength", lightArray[i].strength);
+        regularShader.setFloat(uniformName + ".castShadow", lightArray[i].castShadow);
+        if (lightArray[i].castShadow == true)
+        {
+            regularShader.setInt(uniformName + ".shadowID", lightArray[i].shadowID);
+        }
+        
     }
+
+    regularShader.setBool("shadowsEnabled", shadowsEnabled);
 
     regularShader.setInt("lightAmount", lightArray.size()); // Me when no access to regular shader :moyai:
     regularShader.setFloat("ambientStrength", ambientintensity);
@@ -147,7 +184,7 @@ void render(Shader regularShader, Shader lightShader, Shader depthShader, Shader
     
 }
 
-void renderWeapon(Shader regularShader, Shader lightShader, Shader depthShader, Shader screenShader, int currentWeapon)
+void renderWeapon(int currentWeapon)
 {
     regularShader.use();
 
@@ -182,7 +219,7 @@ void renderWeapon(Shader regularShader, Shader lightShader, Shader depthShader, 
     glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
 }
 
-void renderDepth(Shader depthShader, Shader screenShader, int currentMap)
+void renderDepth(int currentMap)
 {
     // First pass
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[currentMap]);
@@ -217,6 +254,62 @@ void renderDepth(Shader depthShader, Shader screenShader, int currentMap)
 
         glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
     }
+}
+
+void updateStaticShadows()
+{
+    
+    regularShader.use();
+
+    float near_plane = 1.0f, far_plane = 20.0f;
+    regularShader.setFloat("far_plane", far_plane);
+
+    glEnable(GL_CULL_FACE);
+    
+    for (int i = 0; i < 5; i++) // 5 is MAX_SHADOWS
+    {
+        // Rendering to depth map
+        
+        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT, near_plane, far_plane);
+        std::vector<glm::mat4> shadowTransforms;
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+        shadowTransforms.push_back(shadowProj *
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0,-1.0, 0.0), glm::vec3(0.0, 0.0,-1.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 0.0, 1.0), glm::vec3(0.0,-1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
+
+        // Rendering to depth cubemap
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[i]);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        depthShader.use();
+        for (int j = 0; j < 6; j++)
+        {
+            depthShader.setMatrix4fv("shadowMatrices[" + std::to_string(i) + "]" + "[" + std::to_string(j) + "]", 1, GL_FALSE, glm::value_ptr(shadowTransforms[j]));
+        }
+        depthShader.setFloat("far_plane", far_plane);
+        depthShader.setInt("shadow", i);
+        depthShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
+        regularShader.use();
+        regularShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
+        regularShader.setInt("shadowMap[" + std::to_string(i) + "]", 30 - i);
+        glActiveTexture(GL_TEXTURE30-i);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMaps[i]);
+
+        renderDepth(i);
+    }
+
+    glDisable(GL_CULL_FACE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, currentWidth, currentHeight);
 }
 
 void createSkybox()
@@ -278,7 +371,7 @@ void createSkybox()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
 }
 
-void renderSkybox(Shader skyboxShader, unsigned int cubeMapTexture)
+void renderSkybox(unsigned int cubeMapTexture)
 {
     glDepthFunc(GL_LEQUAL);
     skyboxShader.use();

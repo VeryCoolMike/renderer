@@ -3,6 +3,8 @@
 #ifndef SHADER_H
 #define SHADER_H
 
+#include "helper.h"
+
 #include <glad/glad.h>
 
 #include <string>
@@ -18,6 +20,8 @@ public:
     unsigned int ID;
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
+    Shader() {}
+
     Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
     {
         // Step 1: Get the code from the files
