@@ -230,6 +230,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                         if (lightArray[j].id == objects[guisVisible[i].id].id)
                         {
                             ImGui::InputFloat("Light Strength", &lightArray[j].strength);
+                            ImGui::Checkbox("Cast shadow", &lightArray[j].castShadow);
                         }
                     }
                     

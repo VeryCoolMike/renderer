@@ -2,7 +2,7 @@
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 36) out;
 
-#define MAX_SHADOWS 5
+#define MAX_SHADOWS 6
 
 uniform mat4 shadowMatrices[5][6];
 

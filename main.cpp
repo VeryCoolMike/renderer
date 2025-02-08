@@ -66,7 +66,7 @@ unsigned int textureColorbuffer;
 unsigned int framebuffer;
 unsigned int rbo;
 
-const unsigned int MAX_SHADOWS = 5;
+const unsigned int MAX_SHADOWS = 6;
 
 unsigned int depthMapFBOs[MAX_SHADOWS];
 unsigned int depthCubeMaps[MAX_SHADOWS];
@@ -88,6 +88,8 @@ bool shadowsEnabled = true;
 
 int shadowCounter = 0;
 int shadowDepthCounter = 0;
+
+int frameCount = 0;
 
 // Shaders
 Shader lightShader;
@@ -313,7 +315,6 @@ int main(void)
     {   
 
         // Static
-
         glGenFramebuffers(1, &depthMapFBOs[i]);
 
         // Create depth map texture
@@ -418,6 +419,8 @@ int main(void)
             direction.y = 0.0f;
         }
 
+        frameCount++;
+
         lightPos.clear();
 
         for (int i = 0; i < lightArray.size(); i++)
@@ -427,11 +430,16 @@ int main(void)
                 lightArray[i].shadowID = lightPos.size(); // Wowzers
                 //std::cout << lightArray[i].shadowID << std::endl;
                 lightPos.push_back(lightArray[i].pos);
-                
             }
+            
+
         }
 
-        //updateDynamicShadows();
+        if (frameCount % 3 == 0)
+        {
+            updateDynamicShadows();
+        }
+        
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         
@@ -446,13 +454,6 @@ int main(void)
 
         regularShader.use();
         
-        //std::cout << currentFrame * 100000 << std::endl;
-        //if (static_cast<int> (currentFrame * 100000) % 42 == 0)
-        //{
-        //    int shadowIndex = 0;
-        //    updateShadows(&shadowIndex);
-        //}
-
 
         // First pass
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);

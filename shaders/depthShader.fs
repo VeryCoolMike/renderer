@@ -1,7 +1,7 @@
 #version 330 core
 in vec4 FragPos;
 
-#define MAX_SHADOWS 5
+#define MAX_SHADOWS 6
 
 uniform vec3 lightPos[MAX_SHADOWS];
 uniform float far_plane;

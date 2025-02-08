@@ -26,10 +26,12 @@ extern unsigned int textureColorbuffer;
 extern unsigned int framebuffer;
 extern unsigned int rbo;
 
-extern unsigned int depthMapFBOs[5];
-extern unsigned int depthCubeMaps[5];
-extern unsigned int depthDynamicMapFBOs[5];
-extern unsigned int depthDynamicCubeMaps[5];
+const unsigned int RENDER_MAX_SHADOWS = 6;
+
+extern unsigned int depthMapFBOs[RENDER_MAX_SHADOWS];
+extern unsigned int depthCubeMaps[RENDER_MAX_SHADOWS];
+extern unsigned int depthDynamicMapFBOs[RENDER_MAX_SHADOWS];
+extern unsigned int depthDynamicCubeMaps[RENDER_MAX_SHADOWS];
 
 extern glm::vec3 cameraPos;
 
@@ -239,6 +241,8 @@ void renderDepth(int currentMap, bool dynamic = false)
 
     proj = glm::perspective(glm::radians(fov), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, 0.1f, 1000.0f);
 
+    
+
     depthShader.use();
 
     for (unsigned int i = 0; i < objects.size(); i++)
@@ -293,7 +297,7 @@ void updateStaticShadows()
 
     glEnable(GL_CULL_FACE);
     
-    for (int i = 0; i < 5; i++) // 5 is MAX_SHADOWS
+    for (int i = 0; i < RENDER_MAX_SHADOWS; i++) // 5 is RENDER_MAX_SHADOWS
     {
         // Rendering to depth map
         
@@ -349,7 +353,7 @@ void updateDynamicShadows()
 
     glEnable(GL_CULL_FACE);
     
-    for (int i = 0; i < 5; i++) // 5 is MAX_SHADOWS
+    for (int i = 0; i < RENDER_MAX_SHADOWS; i++) // 5 is RENDER_MAX_SHADOWS
     {
         // Rendering to depth map
         
@@ -383,7 +387,7 @@ void updateDynamicShadows()
         regularShader.use();
         regularShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
         regularShader.setInt("dynamicShadowMap[" + std::to_string(i) + "]", 30 - 6 - i);
-        glActiveTexture(GL_TEXTURE30-6-i); // - MAX_SHADOWS to not intrude on the static shadows, i for the shadow id itself and finally - 1 because 30-5-0 is 25 and 30-5 is 25 so they intrude
+        glActiveTexture(GL_TEXTURE30-(RENDER_MAX_SHADOWS+1)-i); // - RENDER_MAX_SHADOWS to not intrude on the static shadows, i for the shadow id itself and finally - 1 because 30-5-0 is 25 and 30-5 is 25 so they intrude
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthDynamicCubeMaps[i]);
 
         renderDepth(i, true);

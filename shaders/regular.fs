@@ -20,7 +20,7 @@ in VS_OUT
 } fs_in;
 
 #define MAX_LIGHTS 500
-#define MAX_SHADOWS 5
+#define MAX_SHADOWS 6
 
 uniform samplerCube shadowMap[MAX_SHADOWS];
 uniform samplerCube dynamicShadowMap[MAX_SHADOWS];
@@ -50,6 +50,8 @@ vec3 gridSamplingDisk[20] = vec3[]
 
 float ShadowCalculation(vec3 fragPos, int id)
 {
+    float exponentialFactor = 80.0; // Adjust this value
+    
     vec3 fragToLight = fragPos - lightPos[id];
     float currentDepth = length(fragToLight);
     if (currentDepth >= far_plane)
@@ -62,26 +64,24 @@ float ShadowCalculation(vec3 fragPos, int id)
     float viewDistance = length(viewPos - fragPos);
     float staticShadow = 0.0f;
     float dynamicShadow = 0.0f;
-    int samples = (viewDistance < far_plane * 0.5) ? 20 : 10;
-    float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
-    for (int i = 0; i < samples; i++)
-    {
-        float staticDepth = texture(shadowMap[id], fragToLight + gridSamplingDisk[i] * diskRadius).r;
-        staticDepth *= far_plane;
-        if (currentDepth - bias > staticDepth)
-        {
-            staticShadow += 1.0f;
-        }
 
-        float dynamicDepth = texture(dynamicShadowMap[id], fragToLight + gridSamplingDisk[i] * diskRadius).r;
-        dynamicDepth *= far_plane;
-        if (currentDepth - bias > dynamicDepth)
-        {
-            dynamicShadow += 1.0f;
-        }
+    float staticDepth = texture(shadowMap[id], fragToLight).r;
+    staticDepth *= far_plane;
+    
+    if (currentDepth - bias > staticDepth)
+    {
+        staticShadow += 1.0f;
     }
-    staticShadow /= float(samples);
-    dynamicShadow /= float(samples);
+
+    float dynamicDepth = texture(dynamicShadowMap[id], fragToLight).r;
+    dynamicDepth *= far_plane;
+    
+    if (currentDepth - bias > dynamicDepth)
+    {
+        dynamicShadow += 1.0f;
+    }
+
+
         
     return staticShadow + dynamicShadow;
 }
@@ -119,9 +119,6 @@ vec3 calcPointLight(PointLight light)
         }
     }
 
-    
-    //shadow += ShadowCalculation(fs_in.FragPos, 1);
-    //shadow += ShadowCalculation(fs_in.FragPos, 2);
 
     
     return (ambient + (2.0 - shadow) * (diffuse + specular)) * objectColor;
