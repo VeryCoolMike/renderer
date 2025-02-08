@@ -28,6 +28,8 @@ extern unsigned int rbo;
 
 extern unsigned int depthMapFBOs[5];
 extern unsigned int depthCubeMaps[5];
+extern unsigned int depthDynamicMapFBOs[5];
+extern unsigned int depthDynamicCubeMaps[5];
 
 extern glm::vec3 cameraPos;
 
@@ -219,10 +221,18 @@ void renderWeapon(int currentWeapon)
     glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
 }
 
-void renderDepth(int currentMap)
+void renderDepth(int currentMap, bool dynamic = false)
 {
     // First pass
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[currentMap]);
+    if (dynamic == true)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, depthDynamicMapFBOs[currentMap]);
+    }
+    else
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[currentMap]);
+    }
+    
     glEnable(GL_DEPTH_TEST);
     glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
@@ -237,6 +247,23 @@ void renderDepth(int currentMap)
         {
             continue;
         }
+        
+        if (dynamic == true)
+        {
+            if (objects[i].dynamic == false)
+            {
+                continue;
+            }
+        }
+        else
+        {
+            if (objects[i].dynamic == true)
+            {
+                continue;
+            }
+        }
+        
+        
         const auto &obj = objects[i];
 
         // Transformations
@@ -303,7 +330,63 @@ void updateStaticShadows()
         glActiveTexture(GL_TEXTURE30-i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMaps[i]);
 
-        renderDepth(i);
+        renderDepth(i, false);
+    }
+
+    glDisable(GL_CULL_FACE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, currentWidth, currentHeight);
+}
+
+void updateDynamicShadows()
+{
+    
+    regularShader.use();
+
+    float near_plane = 1.0f, far_plane = 20.0f;
+    regularShader.setFloat("far_plane", far_plane);
+
+    glEnable(GL_CULL_FACE);
+    
+    for (int i = 0; i < 5; i++) // 5 is MAX_SHADOWS
+    {
+        // Rendering to depth map
+        
+        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT, near_plane, far_plane);
+        std::vector<glm::mat4> shadowTransforms;
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+        shadowTransforms.push_back(shadowProj *
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0,-1.0, 0.0), glm::vec3(0.0, 0.0,-1.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 0.0, 1.0), glm::vec3(0.0,-1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
+
+        // Rendering to depth cubemap
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthDynamicMapFBOs[i]);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        depthShader.use();
+        for (int j = 0; j < 6; j++)
+        {
+            depthShader.setMatrix4fv("shadowMatrices[" + std::to_string(i) + "]" + "[" + std::to_string(j) + "]", 1, GL_FALSE, glm::value_ptr(shadowTransforms[j]));
+        }
+        depthShader.setFloat("far_plane", far_plane);
+        depthShader.setInt("shadow", i);
+        depthShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
+        regularShader.use();
+        regularShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
+        regularShader.setInt("dynamicShadowMap[" + std::to_string(i) + "]", 30 - 6 - i);
+        glActiveTexture(GL_TEXTURE30-6-i); // - MAX_SHADOWS to not intrude on the static shadows, i for the shadow id itself and finally - 1 because 30-5-0 is 25 and 30-5 is 25 so they intrude
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthDynamicCubeMaps[i]);
+
+        renderDepth(i, true);
     }
 
     glDisable(GL_CULL_FACE);

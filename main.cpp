@@ -342,7 +342,7 @@ int main(void)
 
 
 
-        /*
+        
         // Dynamic
         glGenFramebuffers(1, &depthDynamicMapFBOs[i]);
 
@@ -369,7 +369,7 @@ int main(void)
 
         glDrawBuffer(GL_NONE); // To tell OpenGL that there is no colour data
         glReadBuffer(GL_NONE);
-        */
+        
     }
 
     updateStaticShadows();
@@ -430,6 +430,8 @@ int main(void)
                 
             }
         }
+
+        //updateDynamicShadows();
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         

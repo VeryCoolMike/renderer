@@ -221,6 +221,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                 ImGui::InputFloat3("Rotation", &objects[guisVisible[i].id].transform.rot.x);
                 ImGui::InputFloat3("Scale", &objects[guisVisible[i].id].transform.scale.x);
                 ImGui::InputFloat("Reflectance", &objects[guisVisible[i].id].reflectance);
+                ImGui::Checkbox("Dynamic", &objects[guisVisible[i].id].dynamic);
 
                 if (objects[guisVisible[i].id].light == true)
                 {

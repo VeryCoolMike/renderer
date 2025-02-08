@@ -23,6 +23,7 @@ in VS_OUT
 #define MAX_SHADOWS 5
 
 uniform samplerCube shadowMap[MAX_SHADOWS];
+uniform samplerCube dynamicShadowMap[MAX_SHADOWS];
 uniform vec3 lightPos[MAX_SHADOWS];
 
 uniform sampler2D currentTexture;
@@ -55,26 +56,34 @@ float ShadowCalculation(vec3 fragPos, int id)
     {
         return 0.0;
     }
-    float closestDepth = texture(shadowMap[id], fragToLight).r;
-    closestDepth *= far_plane;
+
     float bias = 0.15f;
 
     float viewDistance = length(viewPos - fragPos);
-    float shadow = 0.0f;
+    float staticShadow = 0.0f;
+    float dynamicShadow = 0.0f;
     int samples = (viewDistance < far_plane * 0.5) ? 20 : 10;
     float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
     for (int i = 0; i < samples; i++)
     {
-        float closestDepth = texture(shadowMap[id], fragToLight + gridSamplingDisk[i] * diskRadius).r;
-        closestDepth *= far_plane;
-        if (currentDepth - bias > closestDepth)
+        float staticDepth = texture(shadowMap[id], fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        staticDepth *= far_plane;
+        if (currentDepth - bias > staticDepth)
         {
-            shadow += 1.0f;
+            staticShadow += 1.0f;
+        }
+
+        float dynamicDepth = texture(dynamicShadowMap[id], fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        dynamicDepth *= far_plane;
+        if (currentDepth - bias > dynamicDepth)
+        {
+            dynamicShadow += 1.0f;
         }
     }
-    shadow /= float(samples);
+    staticShadow /= float(samples);
+    dynamicShadow /= float(samples);
         
-    return shadow;
+    return staticShadow + dynamicShadow;
 }
 
 vec3 calcPointLight(PointLight light)
@@ -115,7 +124,7 @@ vec3 calcPointLight(PointLight light)
     //shadow += ShadowCalculation(fs_in.FragPos, 2);
 
     
-    return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
+    return (ambient + (2.0 - shadow) * (diffuse + specular)) * objectColor;
 }
 
 void main()
