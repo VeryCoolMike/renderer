@@ -271,9 +271,9 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                 {
                     if (objects[i].selected == true)
                     {
-                        add_object(currentIDNumber, objects[i].name, cubeObj, objects[i].light);
+                        addObject(currentIDNumber, objects[i].name, cubeObj, objects[i].objectType);
                         objects.back().transform = objects[i].transform;
-                        if (objects[i].light == true)
+                        if (objects[i].objectType == LIGHT)
                         {
                             objects.back().objectColor = objects[i].objectColor;
                         }
@@ -471,9 +471,9 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
                 {
                     if (objects[i].selected == true)
                     {
-                        add_object(currentIDNumber, objects[i].name, cubeObj, objects[i].light);
+                        addObject(currentIDNumber, objects[i].name, cubeObj, objects[i].objectType);
                         objects.back().transform = objects[i].transform;
-                        if (objects[i].light == true)
+                        if (objects[i].objectType == LIGHT)
                         {
                             objects.back().objectColor = objects[i].objectColor;
                         }
@@ -502,9 +502,9 @@ void processInput(GLFWwindow *window) // This is perfect frame input for things 
             {
                 if (objects[i].selected == true)
                 {
-                    add_object(currentIDNumber, objects[i].name, cubeObj, objects[i].light);
+                    addObject(currentIDNumber, objects[i].name, cubeObj, objects[i].objectType);
                     objects.back().transform = objects[i].transform;
-                    if (objects[i].light == true)
+                    if (objects[i].objectType == LIGHT)
                     {
                         objects.back().objectColor = objects[i].objectColor;
                     }

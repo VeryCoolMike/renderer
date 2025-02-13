@@ -34,6 +34,9 @@ int currentObjID = 0;
 
 extern std::vector<gui> guisVisible;
 
+extern std::vector<float> frameTimes;
+
+extern std::vector<vertices> objList;
 
 std::vector<float> convertGLMToOpenGLFLoat(vertices vertices)
 {
@@ -59,16 +62,16 @@ std::vector<float> convertGLMToOpenGLFLoat(vertices vertices)
     return temp_data;
 }
 
-object add_object(int id, std::string name, vertices vertices, bool isLight)
+object addObject(int id, std::string name, vertices vertices, enum objectTypes objectType)
 {
     object newObject;
     newObject.id = currentIDNumber;
     newObject.name = name;
     newObject.vertices = vertices;
-    newObject.light = isLight;
     newObject.transform.pos = glm::vec3(0.0f, 0.0f, 0.0f);
     newObject.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
     newObject.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    newObject.objectType = objectType;
 
     unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
@@ -102,9 +105,8 @@ object add_object(int id, std::string name, vertices vertices, bool isLight)
     newLight.id = currentIDNumber;
     newLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-    if (isLight == true)
+    if (objectType == LIGHT)
     {
-
         lightArray.push_back(newLight);
         currentLightID += 1;
     }
@@ -163,7 +165,7 @@ void SaveToFile(const std::string &filename)
 
         outfile << obj.id << "\n"
                 << obj.name << "\n"
-                << obj.light << "\n"; // ID, Name, And IsLight
+                << obj.objectType << "\n"; // ID, Name, And objectType
         outfile << obj.objectColor[0] << "\n"
                 << obj.objectColor[1] << "\n"
                 << obj.objectColor[2] << "\n"; // Lights colors!!!!
@@ -180,7 +182,7 @@ void SaveToFile(const std::string &filename)
         outfile << obj.vertices.id << "\n";       // Object ID
         // 1. ID
         // 2. Name
-        // 3. IsLight
+        // 3. objectType
         // 4. LightColorX
         // 5. LightColorY
         // 6. LightColorZ
@@ -200,13 +202,13 @@ void SaveToFile(const std::string &filename)
     outfile.close();
 }
 
-vertices loadObj(const std::string &filename) // piss up
+vertices loadObj(const std::string &filename, const std::string &name) // piss up
 {
     std::ifstream infile(filename);
     vertices emptyVertices;
     if (!infile.is_open())
     {
-        std::cout << "ERROR! Object trying to load: " << filename << " does not exist!" << std::endl;
+        std::cout << error("ERROR! Object trying to load: ") << error(filename) << error(" does not exist!") << std::endl;
         return emptyVertices;
     }
 
@@ -306,7 +308,10 @@ vertices loadObj(const std::string &filename) // piss up
     infile.close();
 
     currentVertices.id = filename;
+    currentVertices.name = name;
     std::cout << currentVertices.id << std::endl;
+
+    objList.push_back(currentVertices);
 
     return currentVertices;
 }
@@ -333,7 +338,7 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
     // Making temporary variables for when creating an object
     int tempID;
     std::string tempName;
-    bool tempIsLight;
+    enum objectTypes tempObjectType;
     glm::vec3 tempTransformPos;
     glm::vec3 tempTransformScale;
     glm::vec3 tempTransformRot;
@@ -357,17 +362,16 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
         {
             tempName = text;
         }
-        else if ((lineCount + objectOffset) % objectSize == 3) // Line 3 - IsLight
+        else if ((lineCount + objectOffset) % objectSize == 3) // Line 3 - Object Type
         {
             std::string buffer = text.c_str();
-            if (buffer == "1") // Does not work EDIT: fixed :)
+            if (buffer == "REGULAR")
             {
-                tempIsLight = true;
-                lightCounter += 1;
+                tempObjectType = REGULAR;
             }
             else
             {
-                tempIsLight = false;
+                tempObjectType = LIGHT;
             }
         }
         else if ((lineCount + objectOffset) % objectSize == 4) // Line 4 - Light 0
@@ -517,14 +521,14 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
         {
             try
             {
-                vertices loadedVertices = loadObj(text.c_str());
-                add_object(tempID, tempName, loadedVertices, tempIsLight);
+                vertices loadedVertices = loadObj(text.c_str(), text.c_str());
+                addObject(tempID, tempName, loadedVertices, tempObjectType);
                 objects.back().transform.pos = tempTransformPos;
                 objects.back().transform.scale = tempTransformScale;
                 objects.back().transform.rot = tempTransformRot;
                 objects.back().texture = tempTexture;
 
-                if (objects.back().light == true) // This can't be applied to everything or else lights break for some reason???
+                if (objects.back().objectType == LIGHT) // This can't be applied to everything or else lights break for some reason???
                 {
                     objects.back().objectColor = tempLightColor;
                 }

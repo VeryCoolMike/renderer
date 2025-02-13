@@ -132,7 +132,8 @@ void render()
         model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        if (obj.light)
+        //std::cout << obj.objectType << std::endl;
+        if (obj.objectType == LIGHT)
         {
             lightShader.use();
             for (int j = 0; j < lightArray.size(); j++) // Ah yes, peak, run a for loop every single frame multiple times, truly the pythonic way.
@@ -252,6 +253,7 @@ void renderDepth(int currentMap, bool dynamic = false)
             continue;
         }
         
+        
         if (dynamic == true)
         {
             if (objects[i].dynamic == false)
@@ -268,7 +270,9 @@ void renderDepth(int currentMap, bool dynamic = false)
         }
         
         
+        
         const auto &obj = objects[i];
+        std::cout << obj.name << std::endl;
 
         // Transformations
         model = glm::mat4(1.0f);
@@ -328,6 +332,7 @@ void updateStaticShadows()
         depthShader.setFloat("far_plane", far_plane);
         depthShader.setInt("shadow", i);
         depthShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
+        depthShader.setBool("dynamic", false);
         regularShader.use();
         regularShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
         regularShader.setInt("shadowMap[" + std::to_string(i) + "]", 30 - i);
@@ -342,6 +347,7 @@ void updateStaticShadows()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, currentWidth, currentHeight);
 }
+
 
 void updateDynamicShadows()
 {

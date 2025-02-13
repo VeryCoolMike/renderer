@@ -6,6 +6,7 @@ in vec4 FragPos;
 uniform vec3 lightPos[MAX_SHADOWS];
 uniform float far_plane;
 uniform int shadow;
+uniform bool dynamic;
 
 void main()
 {

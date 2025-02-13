@@ -30,6 +30,14 @@ struct vertices
     std::vector<glm::vec2> texCoords;
     std::vector<glm::vec3> normal;
     std::string id;
+    std::string name;
+};
+
+enum objectTypes
+{
+    REGULAR, // A regular object such as a wall or a floor
+    STATIC, // A static object that is not destroyed/replaced upon load
+    LIGHT // A light
 };
 
 struct object
@@ -43,9 +51,9 @@ struct object
         glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
     } transform;
+    enum objectTypes objectType;
     glm::vec3 objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
     unsigned int shader;
-    bool light;
     unsigned int texture = 1;
     float reflectance = 0.0f;
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
@@ -59,6 +67,13 @@ struct object
 };
 
 std::vector<object> objects;
+
+
+
+struct LuaObject {
+    int id;
+    object *obj;
+};
 
 struct weapon // Later add ammo, and other customizations
 {

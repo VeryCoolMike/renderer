@@ -106,13 +106,13 @@ void renderGui(GLFWwindow *window, Shader regularShader)
 
         if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
         {
-            add_object(currentIDNumber, "box", cubeObj, false);
+            addObject(currentIDNumber, "box", cubeObj, REGULAR);
             objects[currentIDNumber - 1].texture = 0;
         }
 
         if (ImGui::Button("Make Light"))
         {
-            add_object(currentIDNumber, "light", cubeObj, true);
+            addObject(currentIDNumber, "light", cubeObj, LIGHT);
             
         }
 
@@ -122,12 +122,15 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         ImGui::ColorPicker4("Background Color", backgroundColor);
         ImGui::InputInt("Current Shader", &currentShader);
 
+        ImGui::PlotLines("Frame time graph", frameTimes.data(), frameTimes.size(), 0, nullptr, 0.0f, 0.05f, ImVec2(200,100));
+
         ImGui::Text("DEBUG");
         ImGui::InputInt("Current shadow texture", &shadowTexture);
         if (ImGui::Button("Refresh static shadows"))
         {
             updateStaticShadows();
         }
+
         ImGui::Checkbox("Shadows enabled", &shadowsEnabled);
 
         ImGui::NewLine();
@@ -223,7 +226,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                 ImGui::InputFloat("Reflectance", &objects[guisVisible[i].id].reflectance);
                 ImGui::Checkbox("Dynamic", &objects[guisVisible[i].id].dynamic);
 
-                if (objects[guisVisible[i].id].light == true)
+                if (objects[guisVisible[i].id].objectType == LIGHT)
                 {
                     for (int j = 0; j < lightArray.size(); j++)
                     {

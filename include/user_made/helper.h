@@ -3,6 +3,10 @@
 
 #include "structs.h"
 
+std::string error(std::string string);
+
+int PrintMessage(lua_State* L);
+
 struct ray_cast
 {
     object hit;
@@ -96,6 +100,7 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction)
         return finished_cast;
     }
 }
+
 
 std::string error(std::string string)
 {

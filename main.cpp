@@ -11,6 +11,14 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <chrono>
+#include <thread>
+#include <future>
+#include <thread>
+
+#include <lua.hpp>
+#include <lauxlib.h>
+
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -24,6 +32,7 @@
 #include "include/user_made/textures.h"
 #include "include/user_made/gui.h"
 #include "include/user_made/render.h"
+#include "include/user_made/lua.h"
 
 uint32_t getTick();
 
@@ -49,12 +58,14 @@ int fileCount = 0;
 
 int currentShader = 0;
 
+std::vector<vertices> objList;
+
 // Loading files
-vertices coneObj = loadObj("resources/models/cone.obj");
-vertices dbShotgun = loadObj("resources/models/shotgun.obj");
-vertices skull = loadObj("resources/models/skull.obj");
-vertices cubeObj = loadObj("resources/models/cube.obj");
-vertices sponza = loadObj("resources/models/sponza.obj");
+vertices coneObj = loadObj("resources/models/cone.obj", "cone");
+vertices dbShotgun = loadObj("resources/models/shotgun.obj", "shotgun");
+vertices skull = loadObj("resources/models/skull.obj", "skull");
+vertices cubeObj = loadObj("resources/models/cube.obj", "cube");
+vertices sponza = loadObj("resources/models/sponza.obj", "sponza");
 
 player playerInstance;
 
@@ -90,6 +101,8 @@ int shadowCounter = 0;
 int shadowDepthCounter = 0;
 
 int frameCount = 0;
+
+std::vector<float> frameTimes;
 
 // Shaders
 Shader lightShader;
@@ -240,6 +253,7 @@ int main(void)
     createSkybox();
     createGui(window);
 
+
     /*
     ██████  ███████ ███    ██ ██████  ███████ ██████  ██ ███    ██  ██████
     ██   ██ ██      ████   ██ ██   ██ ██      ██   ██ ██ ████   ██ ██
@@ -250,11 +264,14 @@ int main(void)
 
     // Get the camera pos, forward, up, and right (up and cameraUp are not the same, up is the vector that is up on the camera and cameraUp is the world's up)
 
-    add_object(currentIDNumber, "floor", cubeObj, false);
+    addObject(currentIDNumber, "floor", cubeObj, REGULAR);
     objects[currentIDNumber - 1].transform.pos = glm::vec3(0.0f, -5.0f, 0.0f);
     objects[currentIDNumber - 1].transform.scale = glm::vec3(100.0f, 1.0f, 100.0f);
 
-    add_object(currentIDNumber, "box", cubeObj, false);
+    addObject(currentIDNumber, "box", cubeObj, REGULAR);
+
+    addObject(currentIDNumber, "light", cubeObj, LIGHT);
+    objects[currentIDNumber - 1].transform.pos = glm::vec3(3.0f, 3.0f, 0.0f);
 
     // Create the perspective projection
     glm::mat4 proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
@@ -377,6 +394,25 @@ int main(void)
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // LUA
+
+    int scriptCount = 0;
+
+    for (auto i : std::filesystem::directory_iterator("resources/scripts"))
+    {
+        if (std::filesystem::is_regular_file(i))
+        {
+            //textureArray.push_back(loadTexture(i.path().string().c_str()));
+            std::cout << i.path().string() << std::endl;
+            std::thread luaThread(RunScript, i.path().string());
+            luaThread.detach();
+
+            scriptCount++;
+        }
+    }
+    printf("%i scripts found!\n", scriptCount);
+ 
+
     while (!glfwWindowShouldClose(window)) // !---!---! RENDER LOOP !---!---!
     {
         glfwMakeContextCurrent(window);
@@ -396,6 +432,11 @@ int main(void)
         currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        frameTimes.push_back(deltaTime);
+        if (frameTimes.size() >= 100)
+        {
+            frameTimes.erase(frameTimes.begin());
+        }
 
         //  Camera stuff
         // https://learnopengl.com/Getting-started/Camera Euler Angles
@@ -419,13 +460,15 @@ int main(void)
             direction.y = 0.0f;
         }
 
+        
+
         frameCount++;
 
         lightPos.clear();
 
         for (int i = 0; i < lightArray.size(); i++)
         {
-            if (lightArray[i].castShadow == true)
+            if (lightArray[i].castShadow == true && lightArray[i].enabled == true)
             {
                 lightArray[i].shadowID = lightPos.size(); // Wowzers
                 //std::cout << lightArray[i].shadowID << std::endl;
@@ -437,6 +480,7 @@ int main(void)
 
         if (frameCount % 3 == 0)
         {
+            //std::cout << frameCount << std::endl;
             updateDynamicShadows();
         }
         

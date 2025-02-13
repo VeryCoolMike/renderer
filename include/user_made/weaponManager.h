@@ -60,7 +60,7 @@ void fireWeapon(bool debug)
                     float random0 = (rand() % 101) / 100.0f;
                     float random1 = (rand() % 101) / 100.0f;
                     float random2 = (rand() % 101) / 100.0f;
-                    add_object(currentIDNumber, "test", cubeObj, true);
+                    addObject(currentIDNumber, "test", cubeObj, LIGHT);
                     objects.back().transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
                     objects.back().transform.pos = gunRay.pos;
                     objects.back().objectColor = glm::vec3(random0, random1, random2);
@@ -86,7 +86,7 @@ void fireWeapon(bool debug)
                 float random0 = (rand() % 101) / 100.0f;
                 float random1 = (rand() % 101) / 100.0f;
                 float random2 = (rand() % 101) / 100.0f;
-                add_object(currentIDNumber, "test", cubeObj, true);
+                addObject(currentIDNumber, "test", cubeObj, LIGHT);
                 objects.back().transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
                 objects.back().transform.pos = gunRay.pos;
                 objects.back().objectColor = glm::vec3(1.0f, 1.0f, 1.0f);

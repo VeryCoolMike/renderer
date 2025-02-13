@@ -39,19 +39,9 @@ uniform bool shadowsEnabled;
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
 
-vec3 gridSamplingDisk[20] = vec3[]
-(
-   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
-   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
-   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
-   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
-   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
-);
-
 float ShadowCalculation(vec3 fragPos, int id)
 {
-    float exponentialFactor = 80.0; // Adjust this value
-    
+
     vec3 fragToLight = fragPos - lightPos[id];
     float currentDepth = length(fragToLight);
     if (currentDepth >= far_plane)
@@ -60,8 +50,9 @@ float ShadowCalculation(vec3 fragPos, int id)
     }
 
     float bias = 0.15f;
-
     float viewDistance = length(viewPos - fragPos);
+
+    
     float staticShadow = 0.0f;
     float dynamicShadow = 0.0f;
 
@@ -73,13 +64,14 @@ float ShadowCalculation(vec3 fragPos, int id)
         staticShadow += 1.0f;
     }
 
-    float dynamicDepth = texture(dynamicShadowMap[id], fragToLight).r;
+    float dynamicDepth = texture(dynamicShadowMap[id+1], fragToLight).r;
     dynamicDepth *= far_plane;
     
     if (currentDepth - bias > dynamicDepth)
     {
         dynamicShadow += 1.0f;
     }
+
 
 
         
@@ -119,7 +111,7 @@ vec3 calcPointLight(PointLight light)
         }
     }
 
-
+    
     
     return (ambient + (2.0 - shadow) * (diffuse + specular)) * objectColor;
 }
@@ -151,7 +143,8 @@ void main()
 
 
 
-    
+    //FragColor = vec4(vec3(texture(dynamicShadowMap[1], fs_in.FragPos - lightPos[1]).r), 1.0);
+
     //float depth = length(fs_in.FragPos - lightPos);
     //FragColor = vec4(vec3(depth / (far_plane)), 1.0);
 
