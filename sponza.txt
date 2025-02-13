@@ -1,6 +1,6 @@
 0
 floor
-0
+REGULAR
 1
 1
 1
@@ -17,7 +17,7 @@ floor
 resources/models/cube.obj
 1
 box
-0
+REGULAR
 1
 1
 1
@@ -34,7 +34,7 @@ box
 resources/models/sponza.obj
 2
 light
-1
+LIGHT
 1
 0
 0
@@ -51,7 +51,7 @@ light
 resources/models/cube.obj
 3
 light
-1
+LIGHT
 0
 0.123894
 1
@@ -68,7 +68,7 @@ light
 resources/models/cube.obj
 4
 light
-1
+LIGHT
 0
 1
 0.336283

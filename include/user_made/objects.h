@@ -164,8 +164,15 @@ void SaveToFile(const std::string &filename)
     {
 
         outfile << obj.id << "\n"
-                << obj.name << "\n"
-                << obj.objectType << "\n"; // ID, Name, And objectType
+                << obj.name << "\n"; // ID, Name
+        if (obj.objectType == LIGHT) // objectType
+        {
+            outfile << "LIGHT" << "\n";
+        }
+        else
+        {
+            outfile << "REGULAR" << "\n";
+        }
         outfile << obj.objectColor[0] << "\n"
                 << obj.objectColor[1] << "\n"
                 << obj.objectColor[2] << "\n"; // Lights colors!!!!

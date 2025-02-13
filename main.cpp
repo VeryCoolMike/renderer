@@ -223,6 +223,7 @@ int main(void)
         }
     }
     printf("%i textures found!\n", fileCount);
+    
 
     // Load skybox
     std::vector<std::string> faces

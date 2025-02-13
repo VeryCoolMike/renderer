@@ -3,7 +3,7 @@
 > Project Petal is a simple game engine using OpenGL and C++
 
 <picture>
-    <img src="https://github.com/VeryCoolMike/renderer/tree/main/resources/other/sponza2.png" alt="A picture of a scene in the game engine">
+    <img src="https://imgur.com/a/WhYoCgF" alt="A picture of a scene in the game engine">
 </picture>
 
 > **WARNING**: This project is only meant to be run on Linux, although all libraries and code are cross-compatible, the program is NOT designed for Windows or any other platforms! Do not file any issues related to windows! Support may be added at a later date.

@@ -1,6 +1,6 @@
 0
 floor
-0
+REGULAR
 1
 1
 1
@@ -16,8 +16,8 @@ floor
 100
 resources/models/cube.obj
 1
-bmw
-0
+cube
+REGULAR
 1
 1
 1
@@ -34,7 +34,7 @@ bmw
 resources/models/skull.obj
 2
 light
-1
+LIGHT
 1
 1
 1
@@ -51,7 +51,7 @@ light
 resources/models/cube.obj
 3
 light
-1
+LIGHT
 1
 0
 0
