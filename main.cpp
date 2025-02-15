@@ -69,8 +69,6 @@ vertices sponza = loadObj("resources/models/sponza.obj", "sponza");
 
 player playerInstance;
 
-std::vector<GLuint> textureArray;
-
 glm::vec3 direction;
 
 unsigned int textureColorbuffer;
@@ -156,10 +154,6 @@ int main(void)
         return -1;
     }
 
-    // Create weapons
-    createWeapon(dbShotgun, "Shotgun", 8);
-    weapons.back().shotgun = false;
-
     /*
     ███████ ██   ██  █████  ██████  ███████ ██████  ███████
     ██      ██   ██ ██   ██ ██   ██ ██      ██   ██ ██
@@ -216,13 +210,25 @@ int main(void)
     {
         if (std::filesystem::is_regular_file(i))
         {
-            textureArray.push_back(loadTexture(i.path().string().c_str()));
-            std::cout << i << " - " << textureArray.size() << std::endl;
+
+            texture newTexture;
+            
+            newTexture.path = i.path().string();
+            newTexture.name = i.path().filename().stem().string();
+            newTexture.id = loadTexture(newTexture.path.c_str());
+            
+
+            textureArray.push_back(newTexture);
+            std::cout << newTexture.path << " - " << newTexture.id << std::endl;
             
             fileCount++;
         }
     }
     printf("%i textures found!\n", fileCount);
+
+    // Create weapons
+    createWeapon(dbShotgun, "Shotgun", findTextureByName("PAShotgunText"));
+    weapons.back().shotgun = false;
     
 
     // Load skybox
@@ -403,7 +409,6 @@ int main(void)
     {
         if (std::filesystem::is_regular_file(i))
         {
-            //textureArray.push_back(loadTexture(i.path().string().c_str()));
             std::cout << i.path().string() << std::endl;
             std::thread luaThread(RunScript, i.path().string());
             luaThread.detach();
@@ -561,7 +566,7 @@ int main(void)
     }
     for (int i = 0; i < fileCount; i++)
     {
-        glDeleteTextures(1, &textureArray[i]);
+        glDeleteTextures(1, &textureArray[i].id);
     }
     glDeleteFramebuffers(1, &framebuffer);
     glDeleteProgram(lightShader.ID);

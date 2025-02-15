@@ -20,7 +20,7 @@ struct player // Add other things later such as health and more
 
 struct gui
 {
-    int id;
+    int id; // The same as the object its representing
     bool visible;
 };
 
@@ -68,12 +68,20 @@ struct object
 
 std::vector<object> objects;
 
-
-
-struct LuaObject {
-    int id;
+struct LuaObject
+{
+    int id; // The same as the object its representing
     object *obj;
 };
+
+struct texture
+{
+    GLuint id;
+    std::string path;
+    std::string name;
+};
+
+std::vector<texture> textureArray;
 
 struct weapon // Later add ammo, and other customizations
 {
@@ -119,7 +127,7 @@ struct light // This truly is an ECS
 {
     glm::vec3 pos;
     glm::vec3 color;
-    int id;
+    int id; // The same as the object its representing
     bool enabled = true;
     bool selected = false;
     float strength = 1.0f;

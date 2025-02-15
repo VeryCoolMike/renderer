@@ -72,6 +72,16 @@ object addObject(int id, std::string name, vertices vertices, enum objectTypes o
     newObject.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
     newObject.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
     newObject.objectType = objectType;
+    int texture = findTextureByName("placeholder");
+    if (texture == -1)
+    {
+        newObject.texture = 0;
+    }
+    else
+    {
+        newObject.texture = texture;
+        //std::cout << "Assigned texture: " << textureArray[texture].name << " - " << newObject.texture << std::endl;
+    }
 
     unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
@@ -576,7 +586,7 @@ void createWeapon(vertices vertices_used, std::string name, int texture)
     weapon newWeapon;
     newWeapon.vertices = vertices_used;
     newWeapon.name = name;
-    newWeapon.texture = texture - 1;
+    newWeapon.texture = texture;
 
     // VAO and VBO
     unsigned int VAO, VBO;

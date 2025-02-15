@@ -19,7 +19,7 @@ extern vertices dbShotgun;
 extern vertices skull;
 extern vertices cubeObj;
 
-extern std::vector<GLuint> textureArray;
+extern std::vector<texture> textureArray;
 extern GLfloat backgroundColor[4];
 extern float ambientintensity;
 
@@ -176,7 +176,6 @@ void renderGui(GLFWwindow *window, Shader regularShader)
             {
                 if (objects[i].selected == true)
                 {
-                    std::cout << "selected object " << i << std::endl;
                     for (int v = 0; v < guisVisible.size(); v++)
                     {
                         if (guisVisible[v].id == i)
@@ -198,14 +197,16 @@ void renderGui(GLFWwindow *window, Shader regularShader)
             if (guisVisible[i].visible)
             {
                 ImGui::Begin(objects[guisVisible[i].id].name.c_str()); // Start the ImGui window
-                for (int i = 0; i < fileCount; i++)
+                for (int v = 0; v < fileCount; v++) // V is the texture
                 {
-                    ImGui::PushID(i);
-                    if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[i], ImVec2(32, 32), ImVec2(0, 0))) // 0 for no padding
+                    ImGui::PushID(v);
+                    if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[v].id, ImVec2(32, 32), ImVec2(0, 0))) // 0 for no padding
                     {
-                        objects[guisVisible[i].id].texture = i;
+                        std::cout << "Texture is: " << v << " Name is: " << textureArray[v].name << std::endl;
+                        objects[i].texture = v; // NOT WORK guisVisible[i].id WRONG
+                        
                     }
-                    if (i % 10 != 0 || i == 0)
+                    if (v % 10 != 0 || v == 0)
                     {
                         ImGui::SameLine();
                     }

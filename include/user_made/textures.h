@@ -6,6 +6,8 @@
 #include <iostream>
 #include "stb_image.h"
 
+extern std::vector<texture> textureArray;
+
 unsigned int loadTexture(char const *path)
 {
     unsigned int textureID;

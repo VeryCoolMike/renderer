@@ -50,7 +50,7 @@ extern player playerInstance;
 
 extern std::vector<glm::vec3> lightPos;
 
-extern std::vector<GLuint> textureArray;
+extern std::vector<texture> textureArray;
 
 extern bool shadowsEnabled;
 
@@ -121,7 +121,7 @@ void render()
 
         // Textures
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureArray[obj.texture]);
+        glBindTexture(GL_TEXTURE_2D, textureArray[obj.texture].id);
 
         // Transformations
         model = glm::mat4(1.0f);

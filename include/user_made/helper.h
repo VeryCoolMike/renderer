@@ -3,6 +3,8 @@
 
 #include "structs.h"
 
+extern std::vector<texture> textureArray;
+
 std::string error(std::string string);
 
 int PrintMessage(lua_State* L);
@@ -101,6 +103,19 @@ ray_cast raycast(glm::vec3 origin, glm::vec3 direction)
     }
 }
 
+int findTextureByName(std::string name)
+{
+    for (int i = 0; i < textureArray.size(); i++)
+    {
+        //std::cout << textureArray[i].name << std::endl;
+        if (textureArray[i].name == name)
+        {
+            //std::cout << "Decided on: " << textureArray[i].name << " - " << textureArray[i].id << " - " << i << std::endl;
+            return i;
+        }
+    }
+    return -1;
+}
 
 std::string error(std::string string)
 {
