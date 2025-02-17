@@ -39,8 +39,7 @@ extern int currentShader;
 
 extern const unsigned int SCR_WIDTH;
 extern const unsigned int SCR_HEIGHT;
-extern const unsigned int SHADOW_WIDTH;
-extern const unsigned int SHADOW_HEIGHT;
+extern int SHADOW_RESOLUTION;
 
 extern float fov;
 extern float yaw;
@@ -53,9 +52,12 @@ extern std::vector<glm::vec3> lightPos;
 extern std::vector<texture> textureArray;
 
 extern bool shadowsEnabled;
+extern bool shadowDebug;
 
 extern int currentWidth;
 extern int currentHeight;
+
+float near_plane = 1.0f, far_plane = 100.0f;
 
 // Shaders
 extern Shader lightShader;
@@ -75,6 +77,7 @@ extern glm::vec3 cameraRight;
 extern glm::vec3 cameraUp;
 extern glm::vec3 cameraFront;
 
+int getShadowAmount();
 
 void render()
 {
@@ -101,10 +104,10 @@ void render()
         {
             regularShader.setInt(uniformName + ".shadowID", lightArray[i].shadowID);
         }
-        
     }
 
     regularShader.setBool("shadowsEnabled", shadowsEnabled);
+    regularShader.setBool("shadowDebug", shadowDebug);
 
     regularShader.setInt("lightAmount", lightArray.size()); // Me when no access to regular shader :moyai:
     regularShader.setFloat("ambientStrength", ambientintensity);
@@ -121,7 +124,7 @@ void render()
 
         // Textures
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureArray[obj.texture].id);
+        glBindTexture(GL_TEXTURE_2D, textureArray[findTextureByName(obj.texture_name)].id);
 
         // Transformations
         model = glm::mat4(1.0f);
@@ -179,11 +182,6 @@ void render()
     regularShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
-
-
-    // Update things
-    //regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
-
     regularShader.setFloat("ambientStrength", ambientintensity);
 
     
@@ -240,7 +238,7 @@ void renderDepth(int currentMap, bool dynamic = false)
     glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
 
-    proj = glm::perspective(glm::radians(fov), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, 0.1f, 1000.0f);
+    proj = glm::perspective(glm::radians(fov), (float)SHADOW_RESOLUTION / (float)SHADOW_RESOLUTION, 0.1f, 1000.0f);
 
     
 
@@ -296,16 +294,15 @@ void updateStaticShadows()
     
     regularShader.use();
 
-    float near_plane = 1.0f, far_plane = 20.0f;
     regularShader.setFloat("far_plane", far_plane);
 
     glEnable(GL_CULL_FACE);
     
-    for (int i = 0; i < RENDER_MAX_SHADOWS; i++) // 5 is RENDER_MAX_SHADOWS
+    for (int i = 0; i < getShadowAmount(); i++) // 5 is RENDER_MAX_SHADOWS
     {
         // Rendering to depth map
         
-        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT, near_plane, far_plane);
+        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_RESOLUTION/(float)SHADOW_RESOLUTION, near_plane, far_plane);
         std::vector<glm::mat4> shadowTransforms;
         shadowTransforms.push_back(shadowProj * 
                     glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
@@ -321,7 +318,7 @@ void updateStaticShadows()
                     glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
 
         // Rendering to depth cubemap
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glViewport(0, 0, SHADOW_RESOLUTION, SHADOW_RESOLUTION);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[i]);
         glClear(GL_DEPTH_BUFFER_BIT);
         depthShader.use();
@@ -354,16 +351,15 @@ void updateDynamicShadows()
     
     regularShader.use();
 
-    float near_plane = 1.0f, far_plane = 20.0f;
     regularShader.setFloat("far_plane", far_plane);
 
     glEnable(GL_CULL_FACE);
     
-    for (int i = 0; i < RENDER_MAX_SHADOWS; i++) // 5 is RENDER_MAX_SHADOWS
+    for (int i = 0; i < getShadowAmount(); i++) // 5 is RENDER_MAX_SHADOWS
     {
         // Rendering to depth map
         
-        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT, near_plane, far_plane);
+        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_RESOLUTION/(float)SHADOW_RESOLUTION, near_plane, far_plane);
         std::vector<glm::mat4> shadowTransforms;
         shadowTransforms.push_back(shadowProj * 
                     glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
@@ -379,7 +375,7 @@ void updateDynamicShadows()
                     glm::lookAt(lightPos[i], lightPos[i] + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
 
         // Rendering to depth cubemap
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glViewport(0, 0, SHADOW_RESOLUTION, SHADOW_RESOLUTION);
         glBindFramebuffer(GL_FRAMEBUFFER, depthDynamicMapFBOs[i]);
         glClear(GL_DEPTH_BUFFER_BIT);
         depthShader.use();
@@ -392,7 +388,7 @@ void updateDynamicShadows()
         depthShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
         regularShader.use();
         regularShader.setFloat3("lightPos["+ std::to_string(i) + "]", lightPos[i].x, lightPos[i].y, lightPos[i].z);
-        regularShader.setInt("dynamicShadowMap[" + std::to_string(i) + "]", 30 - 6 - i);
+        regularShader.setInt("dynamicShadowMap[" + std::to_string(i) + "]", 30 - (RENDER_MAX_SHADOWS+1) - i);
         glActiveTexture(GL_TEXTURE30-(RENDER_MAX_SHADOWS+1)-i); // - RENDER_MAX_SHADOWS to not intrude on the static shadows, i for the shadow id itself and finally - 1 because 30-5-0 is 25 and 30-5 is 25 so they intrude
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthDynamicCubeMaps[i]);
 
@@ -476,6 +472,20 @@ void renderSkybox(unsigned int cubeMapTexture)
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glDepthFunc(GL_LESS);
+}
+
+int getShadowAmount()
+{
+    int counter = 0;
+    for (int i = 0; i < lightArray.size(); i++)
+    {
+        if (lightArray[i].enabled == true && lightArray[i].castShadow == true)
+        {
+            counter++;
+        }
+    }
+
+    return counter;
 }
 
 #endif // RENDER_H

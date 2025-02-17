@@ -107,10 +107,8 @@ int findTextureByName(std::string name)
 {
     for (int i = 0; i < textureArray.size(); i++)
     {
-        //std::cout << textureArray[i].name << std::endl;
         if (textureArray[i].name == name)
         {
-            //std::cout << "Decided on: " << textureArray[i].name << " - " << textureArray[i].id << " - " << i << std::endl;
             return i;
         }
     }

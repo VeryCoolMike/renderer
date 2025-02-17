@@ -72,16 +72,8 @@ object addObject(int id, std::string name, vertices vertices, enum objectTypes o
     newObject.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
     newObject.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
     newObject.objectType = objectType;
-    int texture = findTextureByName("placeholder");
-    if (texture == -1)
-    {
-        newObject.texture = 0;
-    }
-    else
-    {
-        newObject.texture = texture;
-        //std::cout << "Assigned texture: " << textureArray[texture].name << " - " << newObject.texture << std::endl;
-    }
+    newObject.texture_name = "placeholder";
+
 
     unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
@@ -186,7 +178,7 @@ void SaveToFile(const std::string &filename)
         outfile << obj.objectColor[0] << "\n"
                 << obj.objectColor[1] << "\n"
                 << obj.objectColor[2] << "\n"; // Lights colors!!!!
-        outfile << obj.texture << "\n";        // Textures
+        outfile << obj.texture_name << "\n";        // Textures
         outfile << obj.transform.pos.x << "\n"
                 << obj.transform.pos.y << "\n"
                 << obj.transform.pos.z << "\n"; // Position things! >:3
@@ -219,7 +211,7 @@ void SaveToFile(const std::string &filename)
     outfile.close();
 }
 
-vertices loadObj(const std::string &filename, const std::string &name) // piss up
+vertices loadObj(const std::string &filename, const std::string &name)
 {
     std::ifstream infile(filename);
     vertices emptyVertices;
@@ -239,6 +231,7 @@ vertices loadObj(const std::string &filename, const std::string &name) // piss u
 
     int count = 0;
     bool counted = false;
+
 
     while (std::getline(infile, text))
     {
@@ -274,7 +267,15 @@ vertices loadObj(const std::string &filename, const std::string &name) // piss u
             }
             else if (prefix == "f") // This is so peak
             {
-                // Create 16 vertices (9 for triangle, extra 3 for quads)
+                if (texture_coords.empty() || positions.empty() || normals.empty())
+                {
+                    std::cerr << error("ERROR: Data wasn't fully given for ") << error(currentVertices.name) << std::endl;
+                    infile.close();
+                    vertices newVertices;
+                    return newVertices;
+                }
+                
+                // Create 12 vertices (9 for triangle, extra 3 for quads)
                 int v1, vt1, vn1;
                 int v2, vt2, vn2;
                 int v3, vt3, vn3;
@@ -360,7 +361,7 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
     glm::vec3 tempTransformScale;
     glm::vec3 tempTransformRot;
     glm::vec3 tempLightColor;
-    int tempTexture;
+    std::string tempTexture;
 
     // Clearing the current objects
     objects.clear();
@@ -428,7 +429,7 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
         {
             try
             {
-                tempTexture = std::stof(text);
+                tempTexture = text;
             }
             catch (const std::exception &e)
             {
@@ -543,7 +544,7 @@ int LoadFromFile(const std::string &filename) // Load a map from a text file
                 objects.back().transform.pos = tempTransformPos;
                 objects.back().transform.scale = tempTransformScale;
                 objects.back().transform.rot = tempTransformRot;
-                objects.back().texture = tempTexture;
+                objects.back().texture_name = tempTexture;
 
                 if (objects.back().objectType == LIGHT) // This can't be applied to everything or else lights break for some reason???
                 {

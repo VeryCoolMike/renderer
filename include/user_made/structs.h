@@ -33,6 +33,15 @@ struct vertices
     std::string name;
 };
 
+struct texture
+{
+    GLuint id;
+    std::string path;
+    std::string name;
+};
+
+std::vector<texture> textureArray;
+
 enum objectTypes
 {
     REGULAR, // A regular object such as a wall or a floor
@@ -54,7 +63,7 @@ struct object
     enum objectTypes objectType;
     glm::vec3 objectColor = glm::vec3(1.0f, 1.0f, 1.0f);
     unsigned int shader;
-    unsigned int texture = 1;
+    std::string texture_name;
     float reflectance = 0.0f;
     bool enabled = true; // Not very efficient way of cleaning things up but we won't be deleting too many objects dynamically
     bool visible = true; // Make the object completely visible or invisible (rendered / not rendered)
@@ -73,15 +82,6 @@ struct LuaObject
     int id; // The same as the object its representing
     object *obj;
 };
-
-struct texture
-{
-    GLuint id;
-    std::string path;
-    std::string name;
-};
-
-std::vector<texture> textureArray;
 
 struct weapon // Later add ammo, and other customizations
 {

@@ -15,6 +15,7 @@
 #include <thread>
 #include <future>
 #include <thread>
+#include <algorithm>
 
 #include <lua.hpp>
 #include <lauxlib.h>
@@ -23,6 +24,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include "include/imgui/imgui.h"
+#include "include/imgui/backends/imgui_impl_glfw.h"
+#include "include/imgui/backends/imgui_impl_opengl3.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 
@@ -61,11 +66,11 @@ int currentShader = 0;
 std::vector<vertices> objList;
 
 // Loading files
-vertices coneObj = loadObj("resources/models/cone.obj", "cone");
 vertices dbShotgun = loadObj("resources/models/shotgun.obj", "shotgun");
 vertices skull = loadObj("resources/models/skull.obj", "skull");
 vertices cubeObj = loadObj("resources/models/cube.obj", "cube");
 vertices sponza = loadObj("resources/models/sponza.obj", "sponza");
+
 
 player playerInstance;
 
@@ -83,7 +88,7 @@ unsigned int depthCubeMaps[MAX_SHADOWS];
 unsigned int depthDynamicMapFBOs[MAX_SHADOWS];
 unsigned int depthDynamicCubeMaps[MAX_SHADOWS];
 
-const unsigned int SHADOW_WIDTH = 512, SHADOW_HEIGHT = 512;
+int SHADOW_RESOLUTION = 1024;
 
 glm::mat4 view = glm::mat4(1.0f);
 
@@ -94,6 +99,7 @@ std::vector<glm::vec3> lightPos(MAX_SHADOWS);
 int shadowTexture = 30;
 
 bool shadowsEnabled = true;
+bool shadowDebug = false;
 
 int shadowCounter = 0;
 int shadowDepthCounter = 0;
@@ -122,7 +128,7 @@ glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, 0.0f);
 /// @brief 
 /// @param  
 /// @return 
-int main(void)
+int main(void) // NEXT UP: Figure out what the hell is going on with shadows, add Culling (probably render depth needed for SSAO anyway) and make SSAO (refer to learnopengl goober)
 {
 
     printf("One must imagine sisyphus happy\n");
@@ -137,7 +143,7 @@ int main(void)
     GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "A little more complex rendering", NULL, NULL);
     if (window == NULL) // Check if the window was made correctly
     {
-        std::cout << error("Failed to create window!\n") << std::endl;
+        std::cerr << error("Failed to create window!\n") << std::endl;
         glfwTerminate();
         return -1;
     }
@@ -150,7 +156,7 @@ int main(void)
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) // I'm not even sure
     {
-        std::cout << error("GLAD failed to initialise\n") << std::endl;
+        std::cerr << error("GLAD failed to initialise\n") << std::endl;
         return -1;
     }
 
@@ -197,7 +203,7 @@ int main(void)
     }
     else
     {
-        std::cout << error("getcwd() error") << std::endl;
+        std::cerr << error("getcwd() error") << std::endl;
     }
 
     // Textures
@@ -216,7 +222,6 @@ int main(void)
             newTexture.path = i.path().string();
             newTexture.name = i.path().filename().stem().string();
             newTexture.id = loadTexture(newTexture.path.c_str());
-            
 
             textureArray.push_back(newTexture);
             std::cout << newTexture.path << " - " << newTexture.id << std::endl;
@@ -246,8 +251,6 @@ int main(void)
 
     unsigned int cubeMapTexture = loadCubeMap(faces);
     
-    std::cout << cubeMapTexture << " texture" << std::endl;
-
     skyboxShader.use();
     skyboxShader.setInt("skybox", 3);
     regularShader.use();
@@ -330,7 +333,7 @@ int main(void)
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        std::cout << error("ERROR: FRAMEBUFFER (FULLSCREEN SHADER) is not complete!") << std::endl;
+        std::cerr << error("ERROR: FRAMEBUFFER (FULLSCREEN SHADER) is not complete!") << std::endl;
     }
 
     // Frame buffer for shadows
@@ -347,7 +350,7 @@ int main(void)
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMaps[i]);
         for (int j = 0; j < 6; j++)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOW_RESOLUTION, SHADOW_RESOLUTION, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         }
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -359,7 +362,7 @@ int main(void)
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubeMaps[i], 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         {
-            std::cout << error("ERROR::FRAMEBUFFER:: Framebuffer for static is not complete!") << std::endl;
+            std::cerr << error("ERROR::FRAMEBUFFER:: Framebuffer for static is not complete!") << std::endl;
         }
 
         glDrawBuffer(GL_NONE); // To tell OpenGL that there is no colour data
@@ -377,7 +380,7 @@ int main(void)
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthDynamicCubeMaps[i]);
         for (int j = 0; j < 6; j++)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOW_RESOLUTION, SHADOW_RESOLUTION, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         }
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -389,7 +392,7 @@ int main(void)
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthDynamicCubeMaps[i], 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         {
-            std::cout << error("ERROR::FRAMEBUFFER:: Framebuffer for dynamic is not complete!") << std::endl;
+            std::cerr << error("ERROR::FRAMEBUFFER:: Framebuffer for dynamic is not complete!") << std::endl;
         }
 
         glDrawBuffer(GL_NONE); // To tell OpenGL that there is no colour data
@@ -477,16 +480,12 @@ int main(void)
             if (lightArray[i].castShadow == true && lightArray[i].enabled == true)
             {
                 lightArray[i].shadowID = lightPos.size(); // Wowzers
-                //std::cout << lightArray[i].shadowID << std::endl;
                 lightPos.push_back(lightArray[i].pos);
             }
-            
-
         }
 
         if (frameCount % 3 == 0)
         {
-            //std::cout << frameCount << std::endl;
             updateDynamicShadows();
         }
         
@@ -531,7 +530,7 @@ int main(void)
                 playerInstance.weaponID = 0;
             }
 
-            std::cout << error("Current weapon index out of range") << std::endl;
+            std::cerr << error("Current weapon index out of range") << std::endl;
         }
 
         renderSkybox(cubeMapTexture);

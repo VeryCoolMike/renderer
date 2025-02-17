@@ -5,10 +5,6 @@
 
 #include "shader.h"
 
-#include "imgui.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
-
 // Extern variables
 extern bool gui_visible;
 
@@ -34,6 +30,8 @@ extern int currentShader;
 extern int shadowTexture;
 
 extern bool shadowsEnabled;
+extern bool shadowDebug;
+extern int SHADOW_RESOLUTION;
 
 void createGui(GLFWwindow *window)
 {
@@ -107,7 +105,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
         {
             addObject(currentIDNumber, "box", cubeObj, REGULAR);
-            objects[currentIDNumber - 1].texture = 0;
+            objects[currentIDNumber - 1].texture_name = "placeholder";
         }
 
         if (ImGui::Button("Make Light"))
@@ -132,6 +130,8 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         }
 
         ImGui::Checkbox("Shadows enabled", &shadowsEnabled);
+        //ImGui::InputInt("Shadow resolution", &SHADOW_RESOLUTION);
+        ImGui::Checkbox("Shadow debug", &shadowDebug);
 
         ImGui::NewLine();
         ImGui::Text("Browser");
@@ -203,7 +203,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
                     if (ImGui::ImageButton("##texture1", (ImTextureID)(uint64_t)textureArray[v].id, ImVec2(32, 32), ImVec2(0, 0))) // 0 for no padding
                     {
                         std::cout << "Texture is: " << v << " Name is: " << textureArray[v].name << std::endl;
-                        objects[i].texture = v; // NOT WORK guisVisible[i].id WRONG
+                        objects[i].texture_name = textureArray[v].name; // NOT WORK guisVisible[i].id WRONG
                         
                     }
                     if (v % 10 != 0 || v == 0)

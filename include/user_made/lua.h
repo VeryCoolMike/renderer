@@ -58,22 +58,9 @@ int lua_instanceNew(lua_State *L)
 
     luaL_getmetatable(L, "LuaObject");
     lua_setmetatable(L, -2);
-    
-    return 1;
-}
+    std::cout << objects.back().vertices.name << std::endl;
+    std::cout << udata->obj->vertices.name << std::endl;
 
-int lua_get_object_name(lua_State *L)
-{
-    LuaObject *udata = (LuaObject*)luaL_checkudata(L, 1, "LuaObject");
-
-    if (!udata || !udata->obj)
-    {
-        lua_pushstring(L, "Unkown");
-        std::cout << error("LUA ERROR: Upon requesting name, object was not accessible, check for typos!") << std::endl;
-        return 1;
-    }
-
-    lua_pushstring(L, udata->obj->name.c_str());
     return 1;
 }
 
@@ -108,6 +95,7 @@ int lua_index(lua_State *L)
         lua_pushinteger(L, udata->obj->id);
         return 1;
     }
+    // Transforms
     else if (field == "pos")
     {
         lua_newtable(L);
@@ -176,7 +164,7 @@ int lua_index(lua_State *L)
     }
 
     
-    std::cout << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
+    std::cerr << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
     return 0;
 }
 
@@ -195,14 +183,15 @@ int lua_newIndex(lua_State *L)
     }
     else if (field == "id")
     {
-        std::cout << error("Unable to change ID manually!") << std::endl;
+        std::cerr << error("LUA ERROR: Unable to change ID manually!") << std::endl;
         return 0;
-    }
+    } 
+    // Transforms
     else if (field == "pos")
     {
         if (!lua_istable(L, 3))
         {
-            std::cout << error("Expected a table!") << std::endl;
+            std::cerr << error("LUA ERROR: Expected a table!") << std::endl;
             return 0;
         }
 
@@ -224,7 +213,7 @@ int lua_newIndex(lua_State *L)
     {
         if (!lua_istable(L, 3))
         {
-            std::cout << error("Expected a table!") << std::endl;
+            std::cerr << error("LUA ERROR: Expected a table!") << std::endl;
             return 0;
         }
 
@@ -246,7 +235,7 @@ int lua_newIndex(lua_State *L)
     {
         if (!lua_istable(L, 3))
         {
-            std::cout << error("Expected a table!") << std::endl;
+            std::cerr << error("LUA ERROR: Expected a table!") << std::endl;
             return 0;
         }
 
@@ -262,6 +251,27 @@ int lua_newIndex(lua_State *L)
         udata->obj->transform.scale.z = luaL_checknumber(L, -1);
         lua_pop(L, 1);
 
+        return 0;
+    }
+    else if (field == "model")
+    {
+        std::string name = luaL_checkstring(L, 3);
+        for (int i = 0; i < objList.size(); i++)
+        {
+            if (objList[i].name == name)
+            {
+                for (int v = 0; v < objects.size(); v++)
+                {
+                    if (udata->obj->id == objects[v].id)
+                    {
+                        updateVertices(objList[i], objects[v]);
+                        return 0;
+                    }
+                }
+                
+            }
+        }
+        std::cerr << error("LUA ERROR: Unable to find object") << std::endl;
         return 0;
     }
 
@@ -290,7 +300,7 @@ int lua_newIndex(lua_State *L)
     }
 
     
-    std::cout << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
+    std::cerr << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
     return 0;
 }
 
@@ -319,9 +329,6 @@ void registerLuaFunctions(lua_State *L)
     lua_setfield(L, -2, "__newindex");
 
     lua_pop(L, 1);
-
-    lua_newtable(L);
-    lua_pushcfunction(L, lua_instanceNew);
     
 }
 

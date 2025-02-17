@@ -7,6 +7,10 @@ struct PointLight
     vec3 color;
     bool enabled;
     bool castShadow;
+    //int lightType;
+    // 0 = Directional light
+    // 1 = Point light
+    // 2 = Spot light
     int shadowID;
     float strength;
 };
@@ -35,9 +39,12 @@ uniform bool selected;
 uniform float reflectancy;
 uniform float far_plane;
 uniform bool shadowsEnabled;
+uniform bool shadowDebug;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
+
+
 
 float ShadowCalculation(vec3 fragPos, int id)
 {
@@ -46,36 +53,30 @@ float ShadowCalculation(vec3 fragPos, int id)
     float currentDepth = length(fragToLight);
     if (currentDepth >= far_plane)
     {
-        return 0.0;
+        return 2.0;
     }
 
     float bias = 0.15f;
     float viewDistance = length(viewPos - fragPos);
 
-    
-    float staticShadow = 0.0f;
-    float dynamicShadow = 0.0f;
-
     float staticDepth = texture(shadowMap[id], fragToLight).r;
     staticDepth *= far_plane;
-    
-    if (currentDepth - bias > staticDepth)
-    {
-        staticShadow += 1.0f;
-    }
 
-    float dynamicDepth = texture(dynamicShadowMap[id+1], fragToLight).r;
+    float dynamicDepth = texture(dynamicShadowMap[id], fragToLight).r;
     dynamicDepth *= far_plane;
-    
-    if (currentDepth - bias > dynamicDepth)
+
+    float shadowStatic = (currentDepth - bias > staticDepth) ? 1.0 : 0.0;
+    float shadowDynamic = (currentDepth - bias > dynamicDepth) ? 1.0 : 0.0;
+
+    float shadow = max(shadowStatic, shadowDynamic);
+
+    if (shadowDebug == true)
     {
-        dynamicShadow += 1.0f;
+        FragColor = vec4(vec3(shadowStatic), 1.0);
     }
+    
 
-
-
-        
-    return staticShadow + dynamicShadow;
+    return shadow;
 }
 
 vec3 calcPointLight(PointLight light)
@@ -107,13 +108,11 @@ vec3 calcPointLight(PointLight light)
     {
         if (light.castShadow == true)
         {
-            shadow += ShadowCalculation(fs_in.FragPos, light.shadowID);
+            shadow = ShadowCalculation(fs_in.FragPos, light.shadowID);
         }
     }
-
     
-    
-    return (ambient + (2.0 - shadow) * (diffuse + specular)) * objectColor;
+    return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
 }
 
 void main()
@@ -128,22 +127,26 @@ void main()
     }
 
 
-    if (reflectancy > 0.0)
+    if (shadowDebug == false)
     {
-        vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
-        vec3 R = reflect(I, normalize(fs_in.Normal));
+        if (reflectancy > 0.0)
+        {
+            vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
+            vec3 R = reflect(I, normalize(fs_in.Normal));
 
-        FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
+            FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
+        }
+        else
+        {
+            FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0));
+        }
     }
-    else
-    {
-        FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0));
-    }
+    
     
 
 
 
-    //FragColor = vec4(vec3(texture(dynamicShadowMap[1], fs_in.FragPos - lightPos[1]).r), 1.0);
+    //
 
     //float depth = length(fs_in.FragPos - lightPos);
     //FragColor = vec4(vec3(depth / (far_plane)), 1.0);
