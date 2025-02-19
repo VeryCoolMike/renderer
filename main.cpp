@@ -77,7 +77,11 @@ player playerInstance;
 glm::vec3 direction;
 
 unsigned int textureColorbuffer;
+unsigned int textureDepthbuffer;
+unsigned int textureNormalbuffer;
+unsigned int textureAlbedobuffer;
 unsigned int framebuffer;
+unsigned int ssaoFBO;
 unsigned int rbo;
 
 const unsigned int MAX_SHADOWS = 6;
@@ -106,6 +110,8 @@ int shadowDepthCounter = 0;
 
 int frameCount = 0;
 
+bool zPrePass = true;
+
 std::vector<float> frameTimes;
 
 // Shaders
@@ -114,6 +120,7 @@ Shader regularShader;
 Shader screenShader;
 Shader depthShader;
 Shader skyboxShader;
+Shader prePassShader;
 
 // Camera stuff
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -174,6 +181,7 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
     screenShader = Shader("shaders/screenShader.vs", "shaders/screenShader.fs");
     depthShader = Shader("shaders/depthShader.vs", "shaders/depthShader.fs", "shaders/depthShader.gs");
     skyboxShader = Shader("shaders/skybox.vs", "shaders/skybox.fs");
+    prePassShader = Shader("shaders/prePass.vs", "shaders/prePass.fs");
 
     regularShader.use();
 
@@ -324,12 +332,34 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
     glBindTexture(GL_TEXTURE_2D, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
 
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glGenTextures(1, &textureNormalbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureNormalbuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, textureNormalbuffer, 0);
 
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    glGenTextures(1, &textureAlbedobuffer);
+    glBindTexture(GL_TEXTURE_2D, textureAlbedobuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, textureAlbedobuffer, 0);
+
+    glGenTextures(1, &textureDepthbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, textureDepthbuffer, 0);
+
+    GLenum attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
@@ -368,9 +398,6 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
         glDrawBuffer(GL_NONE); // To tell OpenGL that there is no colour data
         glReadBuffer(GL_NONE);
 
-
-
-        
         // Dynamic
         glGenFramebuffers(1, &depthDynamicMapFBOs[i]);
 
@@ -510,7 +537,27 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
         glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
 
+        prePassShader.use();
+        glDepthFunc(GL_LESS);
+        glColorMask(1, 1, 1, 1);
+        prePassShader.setInt("currentTexture", 1);
+        renderPrePass();
+
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, textureNormalbuffer);
+
+        regularShader.use();
+        regularShader.setInt("depthTexture", 3);
+        regularShader.setInt("normalTexture", 4);
+        
+        glDepthFunc(GL_EQUAL);
+        glColorMask(1, 1, 1, 1);
         render();
+
+        glDepthFunc(GL_LESS);
+        
 
         // Weapons
         int currentWeapon = playerInstance.weaponID;

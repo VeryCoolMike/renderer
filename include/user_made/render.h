@@ -65,6 +65,7 @@ extern Shader regularShader;
 extern Shader screenShader;
 extern Shader depthShader;
 extern Shader skyboxShader;
+extern Shader prePassShader;
 
 
 // Camera
@@ -220,6 +221,44 @@ void renderWeapon(int currentWeapon)
     regularShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
 
     glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
+}
+
+void renderPrePass()
+{
+    prePassShader.use();
+
+    proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+    
+    
+    
+    for (unsigned int i = 0; i < objects.size(); i++)
+    {
+        if (objects[i].enabled == false || objects[i].visible == false)
+        {
+            continue;
+        }
+        const auto &obj = objects[i];
+
+        // Transformations
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, obj.transform.pos);
+        model = glm::scale(model, glm::vec3(obj.transform.scale));
+        glm::vec3 angle = obj.transform.rot;
+        model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        prePassShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
+        prePassShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
+        prePassShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+
+        glBindVertexArray(objects[i].VAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+    }
+
+    
+
 }
 
 void renderDepth(int currentMap, bool dynamic = false)

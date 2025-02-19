@@ -32,6 +32,8 @@ uniform vec3 lightPos[MAX_SHADOWS];
 
 uniform sampler2D currentTexture;
 uniform samplerCube skybox;
+uniform sampler2D depthTexture;
+uniform sampler2D normalTexture;
 uniform vec3 objectColor;
 uniform float ambientStrength;
 uniform vec3 viewPos;
@@ -142,14 +144,19 @@ void main()
         }
     }
     
-    
+    vec2 screenTexCoord = gl_FragCoord.xy / vec2(1920, 1080);
+    /*
+    float depth = texture(depthTexture, screenTexCoord).r;
+    float near = 0.1;
+    float far = 100.0;
+    float viewSpaceDepth = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
+    FragColor = vec4(vec3(viewSpaceDepth), 1.0);
+    */
+    //vec3 normal = normalize(texture(normalTexture, screenTexCoord).xyz);
+    //FragColor = vec4(vec3(normal), 1.0);
 
 
 
-    //
-
-    //float depth = length(fs_in.FragPos - lightPos);
-    //FragColor = vec4(vec3(depth / (far_plane)), 1.0);
 
     if (selected == true)
     {
