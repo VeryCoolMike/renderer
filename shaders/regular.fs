@@ -16,15 +16,10 @@ struct PointLight
 };
 
 
-in VS_OUT
-{
-    vec3 FragPos;
-    vec3 Normal;
-    vec2 TexCoord;
-} fs_in;
-
 #define MAX_LIGHTS 500
 #define MAX_SHADOWS 6
+
+in vec2 TexCoord;
 
 uniform samplerCube shadowMap[MAX_SHADOWS];
 uniform samplerCube dynamicShadowMap[MAX_SHADOWS];
@@ -32,8 +27,6 @@ uniform vec3 lightPos[MAX_SHADOWS];
 
 uniform sampler2D currentTexture;
 uniform samplerCube skybox;
-uniform sampler2D depthTexture;
-uniform sampler2D normalTexture;
 uniform vec3 objectColor;
 uniform float ambientStrength;
 uniform vec3 viewPos;
@@ -42,11 +35,15 @@ uniform float reflectancy;
 uniform float far_plane;
 uniform bool shadowsEnabled;
 uniform bool shadowDebug;
+uniform int screenX;
+uniform int screenY;
 
 uniform int lightAmount;
 uniform PointLight pointLights[MAX_LIGHTS];
 
-
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+uniform sampler2D gAlbedo;
 
 float ShadowCalculation(vec3 fragPos, int id)
 {
@@ -81,26 +78,21 @@ float ShadowCalculation(vec3 fragPos, int id)
     return shadow;
 }
 
-vec3 calcPointLight(PointLight light)
+vec3 calcPointLight(PointLight light, vec3 FragPos, vec3 Normal, vec3 Albedo)
 {
-    mediump float distance = length(light.position - fs_in.FragPos);
-    vec3 norm = normalize(fs_in.Normal);
-    vec3 lightDir = normalize(light.position - fs_in.FragPos);
-    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    
+
+    vec3 lightDir = normalize(light.position - FragPos);
+    vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Albedo * light.color;
+
     float shininess = 32.0;
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-    vec3 specular = spec * light.color;
-    
-    vec3 ambient = ambientStrength * light.color;
-    
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * light.color;
-    
+
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 reflectDir = reflect(-lightDir, Normal);
+    vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0), shininess) * light.color;
+
+    mediump float distance = length(light.position - FragPos);
     mediump float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * (distance * distance));
-    
-    ambient *= attenuation;
+
     diffuse *= attenuation;
     specular *= attenuation;
 
@@ -110,56 +102,45 @@ vec3 calcPointLight(PointLight light)
     {
         if (light.castShadow == true)
         {
-            shadow = ShadowCalculation(fs_in.FragPos, light.shadowID);
+            shadow = ShadowCalculation(FragPos, light.shadowID);
         }
     }
     
-    return (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
+    return (1.0 - shadow) * (diffuse + specular) * objectColor;
 }
 
 void main()
 {
-    vec3 result = vec3(0.0, 0.0, 0.0);
+    vec2 screenSize = vec2(screenX, screenY);
+    vec3 FragPos = texture(gPosition, gl_FragCoord.xy / screenSize).rgb;
+    vec3 Normal = texture(gNormal, gl_FragCoord.xy / screenSize).rgb;
+    vec3 Albedo = texture(gAlbedo, gl_FragCoord.xy / screenSize).rgb;
+    
+    vec3 viewDir = normalize(viewPos - FragPos);
+
+    vec3 result = Albedo * ambientStrength;
+    
     for (int i = 0; i < lightAmount; i++)
     {
         if (pointLights[i].enabled == true)
         {
-            result += calcPointLight(pointLights[i]) * pointLights[i].strength;
+            result += calcPointLight(pointLights[i], FragPos, Normal, Albedo) * pointLights[i].strength;
         }
     }
 
 
     if (shadowDebug == false)
     {
-        if (reflectancy > 0.0)
-        {
-            vec3 I = normalize(fs_in.FragPos - viewPos) * reflectancy;
-            vec3 R = reflect(I, normalize(fs_in.Normal));
 
-            FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
-        }
-        else
-        {
-            FragColor = (texture(currentTexture, fs_in.TexCoord) * vec4(result, 1.0));
-        }
+        vec3 I = normalize(FragPos - viewPos) * reflectancy;
+        vec3 R = reflect(I, normalize(Normal));
+
+        FragColor = (vec4(result, 1.0)) * (vec4(texture(skybox, R).rgb, 1.0f));
+
     }
-    
-    vec2 screenTexCoord = gl_FragCoord.xy / vec2(1920, 1080);
-    /*
-    float depth = texture(depthTexture, screenTexCoord).r;
-    float near = 0.1;
-    float far = 100.0;
-    float viewSpaceDepth = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
-    FragColor = vec4(vec3(viewSpaceDepth), 1.0);
-    */
-    //vec3 normal = normalize(texture(normalTexture, screenTexCoord).xyz);
-    //FragColor = vec4(vec3(normal), 1.0);
-
-
-
 
     if (selected == true)
     {
-        FragColor = texture(currentTexture, fs_in.TexCoord);
+        FragColor = vec4(Albedo, 1.0);
     }
 }

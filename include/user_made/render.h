@@ -9,9 +9,22 @@
 #include "structs.h"
 #include "helper.h"
 
+// TEXTURE1 = CURRENT TEXTURE FOR RENDER()
+// TEXTURE2 = CURRENT TEXTURE FOR RENDERWEAPON() (DEPRECATED)
+// TEXTURE3 = SKYBOX TEXTURE FOR RENDERSKYBOX()
+// TEXTURE4 = CURRENT TEXTURE FOR RENDERGBUFFER()
+// TEXTURE5 = G_POSITION
+// TEXTURE6 = G_NORMAL
+// TEXTURE7 = G_ALBEDO
+// TEXTURE8 = G_DEPTH
+// TEXTURE9 = TEXTURE COLOUR BUFFER 2
+// TEXTURE9-16 = FREE (7 FREE TEXTURES)
+// TEXTURE17-23 = DYNAMIC SHADOWS
+// TEXTURE24-30 = STATIC SHADOWS
+// TEXTURE31 = TEXTURE COLOUR BUFFER
 
 
-float ambientintensity = 0.1f;
+float ambientintensity = 0.0f;
 
 GLfloat backgroundColor[4] = {0.2f, 0.3f, 0.3f, 1.0f};
 
@@ -25,6 +38,10 @@ unsigned int skyboxVBO;
 extern unsigned int textureColorbuffer;
 extern unsigned int framebuffer;
 extern unsigned int rbo;
+
+extern unsigned int gBuffer;
+extern unsigned int gPosition, gNormal, gAlbedo;
+extern unsigned int grbo;
 
 const unsigned int RENDER_MAX_SHADOWS = 6;
 
@@ -65,7 +82,7 @@ extern Shader regularShader;
 extern Shader screenShader;
 extern Shader depthShader;
 extern Shader skyboxShader;
-extern Shader prePassShader;
+extern Shader gBufferShader;
 
 
 // Camera
@@ -82,6 +99,20 @@ int getShadowAmount();
 
 void render()
 {
+
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glActiveTexture(GL_TEXTURE7);
+    glBindTexture(GL_TEXTURE_2D, gAlbedo);
+    glActiveTexture(GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_2D, grbo);
+
+    regularShader.setInt("gPosition", 5);
+    regularShader.setInt("gNormal", 6);
+    regularShader.setInt("gAlbedo", 7);
+    regularShader.setInt("gDepth", 8);
 
     proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
 
@@ -136,7 +167,6 @@ void render()
         model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        //std::cout << obj.objectType << std::endl;
         if (obj.objectType == LIGHT)
         {
             lightShader.use();
@@ -153,6 +183,7 @@ void render()
             lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
 
             lightShader.setInt("currentTexture", 1);
+
         }
         else
         {
@@ -166,11 +197,15 @@ void render()
         }
 
         glBindVertexArray(objects[i].VAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+        
+        if (obj.objectType == REGULAR)
+        {
+            glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+        }
     }
 
     // Needs to be here for some reason or light vertex shader will stop working?????
+    // Edit: This was so stupid, how did I not know that I needed to set the model, view and proj??? Also, how does this even work, it only runs once per frame????
     lightShader.use();
 
     lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
@@ -184,8 +219,84 @@ void render()
     regularShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
 
     regularShader.setFloat("ambientStrength", ambientintensity);
+}
+
+void renderLights()
+{
+    lightShader.use();
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glActiveTexture(GL_TEXTURE7);
+    glBindTexture(GL_TEXTURE_2D, gAlbedo);
+    glActiveTexture(GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_2D, grbo);
+
+    lightShader.setInt("gPosition", 5);
+    lightShader.setInt("gNormal", 6);
+    lightShader.setInt("gAlbedo", 7);
+    lightShader.setInt("gDepth", 8);
+
+    proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+
+    lightShader.use();
+    lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
+
+    for (unsigned int i = 0; i < objects.size(); i++)
+    {
+        if (objects[i].enabled == false || objects[i].visible == false || objects[i].objectType != LIGHT)
+        {
+            continue;
+        }
+        const auto &obj = objects[i];
+
+        // Textures
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureArray[findTextureByName(obj.texture_name)].id);
+
+        // Transformations
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, obj.transform.pos);
+        model = glm::scale(model, glm::vec3(obj.transform.scale));
+        glm::vec3 angle = obj.transform.rot;
+        model = glm::rotate(model, glm::radians(angle.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+
+        lightShader.use();
+
+        for (int j = 0; j < lightArray.size(); j++) // Ah yes, peak, run a for loop every single frame multiple times, truly the pythonic way.
+        {
+            
+            lightArray[j].color = objects[lightArray[j].id].objectColor;
+            if (lightArray[j].id == obj.id)
+            {
+                lightShader.setFloat3("lightColor", lightArray[j].color[0], lightArray[j].color[1], lightArray[j].color[2]);
+                break;
+            }
+        }
+
+        lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
+        lightShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
+        lightShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+
+        lightShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
+
+        lightShader.setInt("currentTexture", 1);
+
+        glBindVertexArray(objects[i].VAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+    }
+
+    // Needs to be here for some reason or light vertex shader will stop working?????
+    // Edit: This was so stupid, how did I not know that I needed to set the model, view and proj??? Also, how does this even work, it only runs once per frame????
+
 
     
+
 }
 
 void renderWeapon(int currentWeapon)
@@ -223,14 +334,15 @@ void renderWeapon(int currentWeapon)
     glDrawArrays(GL_TRIANGLES, 0, weapons[currentWeapon].temp_data.size());
 }
 
-void renderPrePass()
+void renderGBuffer()
 {
-    prePassShader.use();
 
     proj = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-    
-    
-    
+
+    gBufferShader.use();
+    gBufferShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
+    gBufferShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+
     for (unsigned int i = 0; i < objects.size(); i++)
     {
         if (objects[i].enabled == false || objects[i].visible == false)
@@ -238,6 +350,13 @@ void renderPrePass()
             continue;
         }
         const auto &obj = objects[i];
+
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, textureArray[findTextureByName(obj.texture_name)].id);
+
+        gBufferShader.setInt("albedoTexture", 4);
+
+        glBindVertexArray(objects[i].VAO);
 
         // Transformations
         model = glm::mat4(1.0f);
@@ -248,17 +367,13 @@ void renderPrePass()
         model = glm::rotate(model, glm::radians(angle.y), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(angle.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        prePassShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
-        prePassShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(view));
-        prePassShader.setMatrix4fv("projection", 1, GL_FALSE, glm::value_ptr(proj));
+        gBufferShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
 
-        glBindVertexArray(objects[i].VAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+        if (obj.objectType == REGULAR)
+        {
+            glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
+        }
     }
-
-    
-
 }
 
 void renderDepth(int currentMap, bool dynamic = false)
@@ -323,6 +438,7 @@ void renderDepth(int currentMap, bool dynamic = false)
         depthShader.setMatrix4fv("model", 1, GL_FALSE, glm::value_ptr(model));
         
         glBindVertexArray(objects[i].VAO);
+
 
         glDrawArrays(GL_TRIANGLES, 0, obj.temp_data.size());
     }
@@ -501,6 +617,7 @@ void createSkybox()
 
 void renderSkybox(unsigned int cubeMapTexture)
 {
+    glDepthMask(GL_FALSE);
     glDepthFunc(GL_LEQUAL);
     skyboxShader.use();
     skyboxShader.setMatrix4fv("view", 1, GL_FALSE, glm::value_ptr(glm::mat4(glm::mat3(glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp))))); // Oh the misery
@@ -511,6 +628,7 @@ void renderSkybox(unsigned int cubeMapTexture)
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
 }
 
 int getShadowAmount()

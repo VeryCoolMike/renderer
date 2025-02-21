@@ -33,11 +33,11 @@ extern bool shadowsEnabled;
 extern bool shadowDebug;
 extern int SHADOW_RESOLUTION;
 
-extern unsigned int textureDepthbuffer;
-extern unsigned int textureNormalbuffer;
-extern unsigned int textureAlbedobuffer;
+extern unsigned int gPosition, gNormal, gAlbedo;
+extern unsigned int grbo;
 
-extern bool zPrePass;
+extern bool defferedLight;
+
 
 void createGui(GLFWwindow *window)
 {
@@ -126,14 +126,19 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         ImGui::ColorPicker4("Background Color", backgroundColor);
         ImGui::InputInt("Current Shader", &currentShader);
 
-        ImGui::Checkbox("Z Pre Pass", &zPrePass);
+        ImGui::Checkbox("Deffered lights", &defferedLight);
 
         ImGui::PlotLines("Frame time graph", frameTimes.data(), frameTimes.size(), 0, nullptr, 0.0f, *std::max_element(frameTimes.begin(), frameTimes.end()), ImVec2(200,100));
 
         ImGui::Text("DEBUG");
-        ImGui::Image((ImTextureID)(uint64_t)textureDepthbuffer, ImVec2(500, 281), ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::Image((ImTextureID)(uint64_t)textureNormalbuffer, ImVec2(500, 281), ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::Image((ImTextureID)(uint64_t)textureAlbedobuffer, ImVec2(500, 281), ImVec2(0, 1), ImVec2(1, 0));
+
+        float bufferX = 500.0f;
+        float bufferY = 281.25f;
+
+        ImGui::Image((ImTextureID)(uint64_t)gPosition, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID)(uint64_t)gNormal, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID)(uint64_t)gAlbedo, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID)(uint64_t)textureColorbuffer, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
 
         ImGui::InputInt("Current shadow texture", &shadowTexture);
         if (ImGui::Button("Refresh static shadows"))
