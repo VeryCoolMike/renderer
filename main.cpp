@@ -595,7 +595,7 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
         render();
         
-        
+        //glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
 
         // Second pass
                 
