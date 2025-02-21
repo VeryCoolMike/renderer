@@ -571,6 +571,7 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
         screenShader.use();
         screenShader.setInt("shader", currentShader);
         screenShader.setInt("screenTexture", 31);
+        screenShader.setInt("screenTexture2", 9);
 
         regularShader.use();
 
@@ -595,7 +596,18 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
         render();
         
-        //glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
+        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the buffers
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer2);
+
+        glBlitFramebuffer(0, 0, currentWidth, currentHeight, 0, 0, currentWidth, currentHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
+
+        renderLights();
+        renderSkybox(cubeMapTexture);
+
 
         // Second pass
                 
@@ -606,22 +618,17 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
 
         screenShader.use();
         screenShader.setInt("shader", currentShader);
+        screenShader.setFloat3("bgColor", backgroundColor[0], backgroundColor[1], backgroundColor[2]);
         //regularShader.use();
         glBindVertexArray(quadVAO);
         glActiveTexture(GL_TEXTURE31);
         glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+        glActiveTexture(GL_TEXTURE9);
+        glBindTexture(GL_TEXTURE_2D, textureColorbuffer2);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glEnable(GL_DEPTH_TEST);
 
-        
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
-        glBlitFramebuffer(0, 0, currentWidth, currentHeight, 0, 0, currentWidth, currentHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        renderLights();
-        renderSkybox(cubeMapTexture);
         
 
         // Render gui

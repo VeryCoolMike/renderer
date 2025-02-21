@@ -38,6 +38,8 @@ extern unsigned int grbo;
 
 extern bool defferedLight;
 
+extern unsigned int textureColorbuffer2;
+
 
 void createGui(GLFWwindow *window)
 {
@@ -108,7 +110,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
             updateStaticShadows();
         }
 
-        if (ImGui::Button("Make Cube")) // Borked, weird interaction when lights exist and spawning regular cubes, but not more lights??? Who knows, Spawning another light fixes???? EDIT: FIXED!!!
+        if (ImGui::Button("Make Cube"))
         {
             addObject(currentIDNumber, "box", cubeObj, REGULAR);
             objects[currentIDNumber - 1].texture_name = "placeholder";
@@ -139,6 +141,7 @@ void renderGui(GLFWwindow *window, Shader regularShader)
         ImGui::Image((ImTextureID)(uint64_t)gNormal, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::Image((ImTextureID)(uint64_t)gAlbedo, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::Image((ImTextureID)(uint64_t)textureColorbuffer, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID)(uint64_t)textureColorbuffer2, ImVec2(bufferX, bufferY), ImVec2(0, 1), ImVec2(1, 0));
 
         ImGui::InputInt("Current shadow texture", &shadowTexture);
         if (ImGui::Button("Refresh static shadows"))
