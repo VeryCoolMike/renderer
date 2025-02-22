@@ -1,8 +1,6 @@
 #ifndef LUA_H
 #define LUA_H
 
-#include <lua.hpp>
-
 #include "structs.h"
 #include "helper.h"
 #include "objects.h"
@@ -78,6 +76,76 @@ int lua_getCameraPos(lua_State *L)
     lua_rawseti(L, -2, 3);
 
     return 1;
+}
+
+int lua_global_index(lua_State *L)
+{
+    std::string field = luaL_checkstring(L, 2);
+
+    if (field == "cameraPos")
+    {
+        lua_newtable(L);
+
+        lua_pushnumber(L, cameraPos.x);
+        lua_rawseti(L, -2, 1);
+        lua_pushnumber(L, cameraPos.y);
+        lua_rawseti(L, -2, 2);
+        lua_pushnumber(L, cameraPos.z);
+        lua_rawseti(L, -2, 3);
+
+        lua_pushnumber(L, cameraPos.x);
+        lua_setfield(L, -2, "x");
+        lua_pushnumber(L, cameraPos.y);
+        lua_setfield(L, -2, "y");
+        lua_pushnumber(L, cameraPos.z);
+        lua_setfield(L, -2, "z");
+        return 1;
+    }
+
+    std::cerr << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
+    return 0;
+}
+
+int lua_global_new_index(lua_State *L)
+{
+    std::string field = luaL_checkstring(L, 2);
+
+    if (field == "cameraPos")
+    {
+        if (!lua_isstring(L, 3)) // No other parameter given
+        {
+            std::cout << "hi guys" << std::endl;
+            if (!lua_istable(L, 3))
+            {
+                std::cerr << error("LUA ERROR: Expected a table!") << std::endl;
+                return 0;
+            }
+
+            lua_rawgeti(L, 3, 1);
+            cameraPos.x = luaL_checknumber(L, -1);
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, 3, 2);
+            cameraPos.y = luaL_checknumber(L, -1);
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, 3, 3);
+            cameraPos.z = luaL_checknumber(L, -1);
+            lua_pop(L, 1);
+
+            return 0;
+        }
+        else
+        {
+            std::string field2 = luaL_checkstring(L, 3);
+            std::cout << field2 << std::endl;
+            std::cout << "hi guys 2" << std::endl;
+        }
+        
+    }
+
+    std::cerr << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
+    return 0;
 }
 
 int lua_index(lua_State *L)
@@ -162,7 +230,6 @@ int lua_index(lua_State *L)
             }
         }
     }
-
     
     std::cerr << error("LUA ERROR: Field provided is unkown: ") << field << std::endl;
     return 0;
@@ -307,11 +374,10 @@ int lua_newIndex(lua_State *L)
 void registerLuaFunctions(lua_State *L)
 {
     // General functions
-    //lua_register(L, "printMessage", PrintMessage);
     lua_register(L, "getTime", lua_getTime);
     lua_register(L, "wait", lua_wait);
-
     lua_register(L, "getCameraPos", lua_getCameraPos);
+
 
     // Instances
     lua_newtable(L);
@@ -321,7 +387,6 @@ void registerLuaFunctions(lua_State *L)
 
     // Metatables
     luaL_newmetatable(L, "LuaObject");
-
     lua_pushcfunction(L, lua_index);
     lua_setfield(L, -2, "__index");
 
@@ -330,7 +395,24 @@ void registerLuaFunctions(lua_State *L)
 
     lua_pop(L, 1);
     
+    // Create the globals table
+    lua_newtable(L);
+
+    // Create a metatable for it
+    lua_newtable(L);
+    lua_pushcfunction(L, lua_global_index);
+    lua_setfield(L, -2, "__index");  
+
+    lua_pushcfunction(L, lua_global_new_index);
+    lua_setfield(L, -2, "__newindex");  
+
+    // Set the metatable
+    lua_setmetatable(L, -2);
+
+    // Now set as global
+    lua_setglobal(L, "globals");
 }
+
 
 void RunScript(const std::string& script)
 {

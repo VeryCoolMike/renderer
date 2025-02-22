@@ -1,6 +1,5 @@
 #include <stdio.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+
 #include <stdbool.h>
 #include <time.h>
 #include <unistd.h>
@@ -17,17 +16,20 @@
 #include <thread>
 #include <algorithm>
 
-#include <lua.hpp>
-#include <lauxlib.h>
+#include <glad/glad.h>
 
+#include "include/glfw3.h"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "include/glm/glm.hpp"
+#include "include/glm/gtc/matrix_transform.hpp"
+#include "include/glm/gtc/type_ptr.hpp"
 
 #include "include/imgui/imgui.h"
 #include "include/imgui/backends/imgui_impl_glfw.h"
 #include "include/imgui/backends/imgui_impl_opengl3.h"
+
+#include "include/lua/lua.hpp"
+#include "include/lua/lauxlib.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 
@@ -626,10 +628,7 @@ int main(void) // NEXT UP: Figure out what the hell is going on with shadows, ad
         glActiveTexture(GL_TEXTURE9);
         glBindTexture(GL_TEXTURE_2D, textureColorbuffer2);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glEnable(GL_DEPTH_TEST);
-
-
-        
+        glEnable(GL_DEPTH_TEST);        
 
         // Render gui
         renderGui(window, regularShader);
